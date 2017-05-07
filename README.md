@@ -19,10 +19,10 @@ inaccuracies in this manual.*
 
 ### Prerequisites
 
-The packages *python* and *python-serial* need to be installed in order to use
-the tools:
+The packages *python*, *python-serial*, and *python-smbus* need to be installed
+in order to use the tools:
 
-    apt install python python-serial
+    apt install python python-serial python-smbus
 
 
 ## GET LATEST VERSION
