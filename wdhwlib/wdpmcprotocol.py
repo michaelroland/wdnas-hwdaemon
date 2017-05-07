@@ -955,7 +955,6 @@ class PMCCommands(PMCInterruptCallback):
                                              "does not match expected "
                                              "format".format(status_field))
     
-    
     def getDLB(self):
         """TODO: What does DLB do???
         
