@@ -80,9 +80,9 @@ class TemperatureReader(object):
                     int_value = int(match.group(1))
                     return int_value
                 else:
-                    return -1
+                    return None
         except IOError as e:
-            return -1
+            return None
     
     def getNumCPUCores(self):
         """Get number of CPU cores.
@@ -112,8 +112,8 @@ class TemperatureReader(object):
         """
         tj_value = __readCoreTempValue(cpu_index,
                                        _CORETEMP_TYPE_JUNCTION_VALUE)
-        if tj_value == -1:
-            return -1.0
+        if tj_value is None:
+            return None
         return float(tj_value) / 1000.0
     
     def getCPUTemperatureDelta(self, cpu_index):
@@ -129,8 +129,8 @@ class TemperatureReader(object):
                                           _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
         tj_delta = __readCoreTempValue(cpu_index,
                                        _CORETEMP_TYPE_JUNCTION_VALUE)
-        if (tj_crit_max == -1) or (tj_value == -1):
-            return -1.0
+        if (tj_crit_max is None) or (tj_value is None):
+            return None
         return float(tj_crit_max - tj_value) / 1000.0
     
     def getCPUTemperatureMax(self, cpu_index):
@@ -144,8 +144,8 @@ class TemperatureReader(object):
         """
         tj_max = __readCoreTempValue(cpu_index,
                                      _CORETEMP_TYPE_JUNCTION_MAX)
-        if tj_max == -1:
-            return -1.0
+        if tj_max is None:
+            return None
         return float(tj_max) / 1000.0
     
     def getCPUTemperatureCriticalMax(self, cpu_index):
@@ -159,8 +159,8 @@ class TemperatureReader(object):
         """
         tj_crit_max = __readCoreTempValue(cpu_index,
                                           _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
-        if tj_crit_max == -1:
-            return -1.0
+        if tj_crit_max is None:
+            return None
         return float(tj_crit_max) / 1000.0
     
     def getCPUTemperatureOutOfSpec(self, cpu_index):
@@ -174,6 +174,8 @@ class TemperatureReader(object):
         """
         crit_alarm = __readCoreTempValue(cpu_index,
                                          _CORETEMP_TYPE_ALARM)
+        if crit_alarm is None:
+            return False
         return (crit_alarm != 0)
     
     def __openMemorySMBusDevice(self):
@@ -244,7 +246,7 @@ class TemperatureReader(object):
                     sb.close()
                 except:
                     pass
-        return -1.0
+        return None
     
     def getHDTemperature(self, hdd):
         """Get the temperature of the memory bank.
@@ -264,7 +266,7 @@ class TemperatureReader(object):
                     return float(temperature)
         except CalledProcessError:
             pass
-        return -1.0
+        return None
 
 
 if __name__ == "__main__":
