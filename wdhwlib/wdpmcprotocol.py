@@ -381,6 +381,8 @@ class PMCCommands(PMCInterruptCallback):
         This method blocks until cleanup completed.
         """
         self.__conn_manager.close()
+        self.__processor = None
+        self.__conn_manager = None
     
     def getVersion(self):
         """Get the PMC version information.
