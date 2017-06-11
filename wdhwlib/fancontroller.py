@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import logging
-import subprocess
 import threading
 import time
 
@@ -431,13 +430,116 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
             return None
 
 
-class FanController(object):
+class FanControllerCallback(object):
+    """Callback interface for fan controller status callbacks.
+    """
+    
+    def controllerStarted(self):
+        """Callback invoked when the fan controller is up and running.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def controllerStopped(self):
+        """Callback invoked when the fan controller was stopped.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def fanError(self):
+        """Callback invoked when the fan or the PMC does not work/respond.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def shutdownRequestImmediate(self):
+        """Callback invoked when the temperature level is critical and an immediate shutdown is necessary.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def shutdownRequestDelayed(self):
+        """Callback invoked when the temperature level is close to critical and a shutdown should be scheduled.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def shutdownCancelPending(self):
+        """Callback invoked when the temperature level is in the normal operation range and pending shutdowns should be canceled.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+    
+    def levelChanged(self, new_level, old_level):
+        """Callback invoked when the temperature level changed.
+        
+        This callback is invoked on a dedicated message handler thread and
+        may be blocked for processing the status message.
+        """
+        pass
+
+
+class FanControllerCallbackHandler(Handler):
+    """Message queue handler for processing fan controller status callbacks.
+    """
+    
+    MSG_CTRL_STARTED = Handler.NEXT_MSG_ID
+    MSG_CTRL_STOPPED = MSG_CTRL_STARTED + 1
+    MSG_FAN_ERROR = MSG_CTRL_STOPPED + 1
+    MSG_SHUTDOWN_IMMEDIATE = MSG_FAN_ERROR + 1
+    MSG_SHUTDOWN_DELAYED = MSG_SHUTDOWN_IMMEDIATE + 1
+    MSG_SHUTDOWN_CANCEL = MSG_SHUTDOWN_DELAYED + 1
+    MSG_LEVEL_CHANGED = MSG_SHUTDOWN_CANCEL + 1
+    NEXT_MSG_ID = MSG_LEVEL_CHANGED + 1
+    
+    def __init__(self, status_callback):
+        """Initializes a new interrupt queue handler.
+        
+        Args:
+            interrupt_callback (FanControllerCallback): The associated callback
+                implementation that consumes status updates.
+        """
+        super(FanControllerCallbackHandler, self).__init__(True)
+        self.__callback = status_callback
+    
+    def handleMessage(self, msg):
+        if msg.what == FanControllerCallbackHandler.MSG_CTRL_STARTED:
+            self.__callback.controllerStarted()
+        elif msg.what == FanControllerCallbackHandler.MSG_CTRL_STOPPED:
+            self.__callback.controllerStopped()
+        elif msg.what == FanControllerCallbackHandler.MSG_FAN_ERROR:
+            self.__callback.fanError()
+        elif msg.what == FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE:
+            self.__callback.shutdownRequestImmediate()
+        elif msg.what == FanControllerCallbackHandler.MSG_SHUTDOWN_DELAYED:
+            self.__callback.shutdownRequestDelayed()
+        elif msg.what == FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL:
+            self.__callback.shutdownCancelPending()
+        elif msg.what == FanControllerCallbackHandler.MSG_LEVEL_CHANGED:
+            self.__callback.levelChanged(msg.obj(0), msg.obj(1))
+        else:
+            super(FanControllerCallbackHandler, self).handleMessage(msg)
+
+
+class FanController(FanControllerCallback):
     """Fan controller.
     """
     
     INTERVAL = 10
     
-	LEVEL_UNDER = 0
+    LEVEL_UNDER = 0
     LEVEL_COOL = 1
     LEVEL_NORMAL = 2
     LEVEL_WARM = 3
@@ -452,14 +554,16 @@ class FanController(object):
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
     
-    def __init__(self, pmc, temperature_reader):
+    def __init__(self, pmc, temperature_reader, disk_drives):
         """Initializes a new fan controller.
         
         Args:
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
+            disk_drives (List(str)): A list of HDD device names to monitor.
         """
         super(FanController, self).__init__()
+        self.__status_handler = FanControllerCallbackHandler(self)
         self.__lock = threading.RLock()
         self.__running = False
         self.__thread = None
@@ -469,83 +573,94 @@ class FanController(object):
             MemoryTemperatureMonitor(temperature_reader),
             CPUTemperatureMonitor(temperature_reader),
             CPUDeltaTemperatureMonitor(temperature_reader),
-            HardDiskDriveTemperatureMonitor(temperature_reader, "/dev/sda"),
-            HardDiskDriveTemperatureMonitor(temperature_reader, "/dev/sdb"),
-            HardDiskDriveTemperatureMonitor(temperature_reader, "/dev/sdc"),
         ]
+        for disk in disk_drives:
+            self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
     
     def __run(self):
         """Runnable target of the fan controller thread."""
         last_global_level = LEVEL_UNDER
-        while self.__running:
-            global_level = LEVEL_UNDER
-            for monitor in self.__monitors:
-                level = monitor.level
-                if global_level < level:
-                    global_level = level
-            
-            fan_speed_change = False
-            fan_speed = 0
-            fan_rpm = 0
-            try:
-                fan_speed = self.__pmc.getFanSpeed()
-                fan_rpm = self.__pmc.getFanRPM()
-            except:
-                # PMC or fan error
-                fan_speed = FanController.FAN_MAX
-                fan_speed_change = True
-                #command_alert fan_not_working
-            
-            if fan_rpm < FanController.FAN_RPM_MIN:
-                fan_speed = FanController.FAN_MAX
-                fan_speed_change = True
-                #command_alert fan_not_working
-            
-            if global_level >= FanController.LEVEL_HOT:
-                if fan_speed < FanController.FAN_MAX:
-                    fan_speed = FanController.FAN_MAX
-                    fan_speed_change = True
-            elif global_level > FanController.LEVEL_NORMAL:
-                if fan_speed < FanController.FAN_MAX:
-                    fan_speed += FanController.FAN_STEP_INC
-                    fan_speed_change = True
-            elif global_level < FanController.LEVEL_NORMAL:
-                if fan_speed > FanController.FAN_MIN:
-                    fan_speed -= FanController.FAN_STEP_DEC
-                    fan_speed_change = True
-            
-            if fan_speed_change:
-                if fan_speed > FanController.FAN_MAX:
-                    fan_speed = FanController.FAN_MAX
-                elif fan_speed < FanController.FAN_MIN:
-                    fan_speed = FanController.FAN_MIN
-                _logger.info("%s: Setting fan speed to %d percent",
-                                 type(self).__name__,
-                                 fan_speed)
+        self.__status_handler.sendMessage(
+                Message(FanControllerCallbackHandler.MSG_CTRL_STARTED))
+        try:
+            while self.__running:
+                global_level = LEVEL_UNDER
+                for monitor in self.__monitors:
+                    level = monitor.level
+                    if global_level < level:
+                        global_level = level
+                
+                fan_speed_change = False
+                fan_speed = 0
+                fan_rpm = 0
                 try:
-                    self.__pmc.setFanSpeed(fan_speed)
+                    fan_speed = self.__pmc.getFanSpeed()
+                    fan_rpm = self.__pmc.getFanRPM()
                 except:
                     # PMC or fan error
-                    #command_alert fan_not_working
-            
-            if global_level != last_global_level:
-                _logger.info("%s: Alert level changed from %d to %d",
-                                 type(self).__name__,
-                                 last_global_level,
-                                 global_level)
-                if global_level >= FanController.LEVEL_CRITICAL:
-                    # shutdown immediately
-                    #result = subprocess.call(["shutdown", "-P", "now"])
-                elif global_level >= FanController.LEVEL_SHUTDOWN:
-                    # schedule shutdown in 3600 seconds
-                    #result = subprocess.call(["shutdown", "-P", "+60"])
-                else:
-                    # cancel pending shutdown
-                    #result = subprocess.call(["shutdown", "-c"])
-            
-            last_global_level = global_level
-            time.sleep(FanController.INTERVAL)
-    
+                    fan_speed = FanController.FAN_MAX
+                    fan_speed_change = True
+                    self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                
+                if fan_rpm < FanController.FAN_RPM_MIN:
+                    fan_speed = FanController.FAN_MAX
+                    fan_speed_change = True
+                    self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                
+                if global_level >= FanController.LEVEL_HOT:
+                    if fan_speed < FanController.FAN_MAX:
+                        fan_speed = FanController.FAN_MAX
+                        fan_speed_change = True
+                elif global_level > FanController.LEVEL_NORMAL:
+                    if fan_speed < FanController.FAN_MAX:
+                        fan_speed += FanController.FAN_STEP_INC
+                        fan_speed_change = True
+                elif global_level < FanController.LEVEL_NORMAL:
+                    if fan_speed > FanController.FAN_MIN:
+                        fan_speed -= FanController.FAN_STEP_DEC
+                        fan_speed_change = True
+                
+                if fan_speed_change:
+                    if fan_speed > FanController.FAN_MAX:
+                        fan_speed = FanController.FAN_MAX
+                    elif fan_speed < FanController.FAN_MIN:
+                        fan_speed = FanController.FAN_MIN
+                    _logger.info("%s: Setting fan speed to %d percent",
+                                     type(self).__name__,
+                                     fan_speed)
+                    try:
+                        self.__pmc.setFanSpeed(fan_speed)
+                    except:
+                        # PMC or fan error
+                        self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                
+                if global_level != last_global_level:
+                    _logger.info("%s: Alert level changed from %d to %d",
+                                     type(self).__name__,
+                                     last_global_level,
+                                     global_level)
+                    if global_level >= FanController.LEVEL_CRITICAL:
+                        self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE))
+                    elif global_level >= FanController.LEVEL_SHUTDOWN:
+                        self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_DELAYED))
+                    else:
+                        self.__status_handler.sendMessage(
+                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
+                    self.__status_handler.sendMessage(
+                        Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED),
+                                (global_level, last_global_level))
+                
+                last_global_level = global_level
+                time.sleep(FanController.INTERVAL)
+        finally:
+            self.__status_handler.sendMessage(
+                    Message(FanControllerCallbackHandler.MSG_CTRL_STOPPED))
+
     def start(self):
         """Start the fan controller thread.
         
@@ -555,6 +670,7 @@ class FanController(object):
         """
         with self.__lock:
             if not self.__running:
+                self.__status_handler.start()
                 for monitor in self.__monitors:
                     monitor.start()
                 self.__thread = threading.Thread(target=self.__run)
@@ -576,12 +692,34 @@ class FanController(object):
                 self.__thread = None
                 for monitor in self.__monitors:
                     monitor.join()
+                self.__status_handler.join()
     
     @property
     def is_running(self):
         """bool: Is the fan controller thread in running state?"""
         with self.__lock:
             return self.__running
+    
+    def controllerStarted(self):
+        pass
+    
+    def controllerStopped(self):
+        pass
+    
+    def fanError(self):
+        pass
+    
+    def shutdownRequestImmediate(self):
+        pass
+    
+    def shutdownRequestDelayed(self):
+        pass
+    
+    def shutdownCancelPending(self):
+        pass
+    
+    def levelChanged(self, new_level, old_level):
+        pass
 
 
 if __name__ == "__main__":
