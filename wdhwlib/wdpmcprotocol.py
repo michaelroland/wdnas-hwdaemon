@@ -28,7 +28,7 @@ import threading
 from messagequeue import Message
 from messagequeue.threaded import Handler
 
-import threadedserial import SerialConnectionManager, TerminatedPacketProcessor
+from threadedserial import SerialConnectionManager, TerminatedPacketProcessor
 
 
 _logger = logging.getLogger(__name__)
@@ -1009,6 +1009,7 @@ class PMCCommands(PMCInterruptCallback):
             raise PMCUnexpectedResponseError("Response argument '{0}' "
                                              "does not match expected "
                                              "format".format(status_field))
+    
     def interruptReceived(self):
         pass
     
