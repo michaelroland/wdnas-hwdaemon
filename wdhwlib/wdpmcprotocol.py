@@ -183,7 +183,7 @@ class PMCInterruptHandler(Handler):
         if msg.what == PMCInterruptHandler.MSG_INTERRUPT:
             self.__callback.interruptReceived()
         elif msg.what == PMCInterruptHandler.MSG_OUTOFSEQUENCE:
-            self.__callback.sequenceError(msg.obj(0), msg.obj(1))
+            self.__callback.sequenceError(msg.obj[0], msg.obj[1])
         elif msg.what == PMCInterruptHandler.MSG_CONNECTION_CLOSED:
             self.__callback.connectionClosed(msg.obj)
         else:
