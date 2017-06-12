@@ -56,44 +56,44 @@ class FanControllerImpl(FanController):
         self.__pmc = pmc
     
     def controllerStarted(self):
-        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
+        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
         pass
     
     def controllerStopped(self):
-        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
-        self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setPowerLEDPulse(False)
+        self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
+        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
         pass
     
     def fanError(self):
         # shutdown immediately???
+        self.__pmc.setPowerLEDPulse(False)
         self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_RED)
-        self.__pmc.setPowerLEDPulse(False)
         pass
     
     def shutdownRequestImmediate(self):
         # shutdown immediately
         #result = subprocess.call(["shutdown", "-P", "now"])
+        self.__pmc.setPowerLEDPulse(False)
         self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_RED)
-        self.__pmc.setPowerLEDPulse(False)
         pass
     
     def shutdownRequestDelayed(self):
         # schedule shutdown in 3600 seconds
         #result = subprocess.call(["shutdown", "-P", "+60"])
-        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
-        self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setPowerLEDPulse(False)
+        self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
+        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
         pass
     
     def shutdownCancelPending(self):
         # cancel pending shutdown
         #result = subprocess.call(["shutdown", "-c"])
-        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
+        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
         pass
     
     def levelChanged(self, new_level, old_level):
@@ -117,9 +117,9 @@ class WdHwDaemon(object):
         pmc = PMCCommandsImpl()
         pmc.connect()
         
+        pmc.setPowerLEDPulse(False)
         pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
         pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_BLUE)
-        pmc.setPowerLEDPulse(False)
         
         pmc_version = pmc.getVersion()
         print "PMC manager connected to {0}.".format(pmc_version)
