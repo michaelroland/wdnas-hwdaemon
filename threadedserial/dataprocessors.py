@@ -26,7 +26,7 @@ import threading
 from messagequeue import Message
 from messagequeue.threaded import Handler
 
-import threadedserial import SerialConnectionManager
+import threadedserial
 
 
 class BasicSerialDataProcessor(object):
