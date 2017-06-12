@@ -20,10 +20,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+import logging
 import os
-from os.path import isdir,join
+from os.path import isdir,isfile,join
 import re
+import smbus
 import subprocess
+
+
+_logger = logging.getLogger(__name__)
 
 
 _CPUINFO_FILENAME = "/proc/cpuinfo"
@@ -31,7 +36,7 @@ _CPUINFO_REGEX_CORES = re.compile(r"^cpu\s+cores.*:\s*([0-9]+)\s*$")
 
 _CORETEMP_FILENAME_BASE = "/sys/class/hwmon/hwmon0/temp{0:d}_{1}"
 _CORETEMP_CORE_OFFSET = 2
-_CORETEMP_TYPE_JUNCTION_VALUE = "value"
+_CORETEMP_TYPE_JUNCTION_VALUE = "input"
 _CORETEMP_TYPE_JUNCTION_REGULAR_MAX = "max"
 _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX = "crit"
 _CORETEMP_TYPE_ALARM = "crit_alarm"
@@ -44,8 +49,9 @@ _SMBUS_VENDORID_FILE = "device/device/vendor"
 _SMBUS_DEVICEID_FILE = "device/device/device"
 _SMBUS_MEMORYTEMP_VENDORID = "8086"
 _SMBUS_MEMORYTEMP_DEVICEID = "1f3c"
-_SMBUS_MEMORYTEMP_ADDRESS = 25
-_SMBUS_MEMORYTEMP_COMMAND = 5
+_SMBUS_MEMORYTEMP_ADDRESS = 0x50
+_SMBUS_MEMORYTEMP_REG_CAPABILITY = 0
+_SMBUS_MEMORYTEMP_REG_TEMPERATURE = 5
 
 _HDSMART_COMMAND_BASE = ["/usr/sbin/smartctl", "-A", "-d", "ata"]
 _HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
@@ -59,6 +65,20 @@ class TemperatureReader(object):
     def __init__(self):
         """Initializes a new instance of the temperature reader."""
         super(TemperatureReader, self).__init__()
+    
+    def connect(self):
+        """Connect the temperature reader.
+        
+        This method does nothing.
+        """
+        pass
+    
+    def close(self):
+        """Close the temperature reader.
+        
+        This method does nothing.
+        """
+        pass
     
     def __readCoreTempValue(self, cpu_index, value_type):
         """Get the contents of a coretemp file.
@@ -110,8 +130,8 @@ class TemperatureReader(object):
         Returns:
             float: The temperature in degrees Celsius.
         """
-        tj_value = __readCoreTempValue(cpu_index,
-                                       _CORETEMP_TYPE_JUNCTION_VALUE)
+        tj_value = self.__readCoreTempValue(cpu_index,
+                                            _CORETEMP_TYPE_JUNCTION_VALUE)
         if tj_value is None:
             return None
         return float(tj_value) / 1000.0
@@ -125,10 +145,10 @@ class TemperatureReader(object):
         Returns:
             float: The temperature delta in degrees Celsius.
         """
-        tj_crit_max = __readCoreTempValue(cpu_index,
-                                          _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
-        tj_delta = __readCoreTempValue(cpu_index,
-                                       _CORETEMP_TYPE_JUNCTION_VALUE)
+        tj_crit_max = self.__readCoreTempValue(cpu_index,
+                                               _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
+        tj_value = self.__readCoreTempValue(cpu_index,
+                                            _CORETEMP_TYPE_JUNCTION_VALUE)
         if (tj_crit_max is None) or (tj_value is None):
             return None
         return float(tj_crit_max - tj_value) / 1000.0
@@ -142,8 +162,8 @@ class TemperatureReader(object):
         Returns:
             float: The maximum junction temperature in degrees Celsius.
         """
-        tj_max = __readCoreTempValue(cpu_index,
-                                     _CORETEMP_TYPE_JUNCTION_MAX)
+        tj_max = self.__readCoreTempValue(cpu_index,
+                                          _CORETEMP_TYPE_JUNCTION_MAX)
         if tj_max is None:
             return None
         return float(tj_max) / 1000.0
@@ -157,8 +177,8 @@ class TemperatureReader(object):
         Returns:
             float: The critical maximum junction temperature in degrees Celsius.
         """
-        tj_crit_max = __readCoreTempValue(cpu_index,
-                                          _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
+        tj_crit_max = self.__readCoreTempValue(cpu_index,
+                                               _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX)
         if tj_crit_max is None:
             return None
         return float(tj_crit_max) / 1000.0
@@ -172,8 +192,8 @@ class TemperatureReader(object):
         Returns:
             bool: The temperature out-of-spec flag.
         """
-        crit_alarm = __readCoreTempValue(cpu_index,
-                                         _CORETEMP_TYPE_ALARM)
+        crit_alarm = self.__readCoreTempValue(cpu_index,
+                                              _CORETEMP_TYPE_ALARM)
         if crit_alarm is None:
             return False
         return (crit_alarm != 0)
@@ -189,11 +209,11 @@ class TemperatureReader(object):
             if not isdir(device_abs):
                 continue
             
-            device_id_file = join(_SMBUS_DEVICES_PATH, device, _SMBUS_VENDORID_FILE)
-            if not isfile(device_id_file):
+            vendor_id_file = join(device_abs, _SMBUS_VENDORID_FILE)
+            if not isfile(vendor_id_file):
                 continue
             try:
-                with open(device_id_file, "r") as f:
+                with open(vendor_id_file, "r") as f:
                     raw_value = f.readline()
                     match = _SMBUS_REGEX_HEXID.match(raw_value)
                     if match is None:
@@ -203,7 +223,7 @@ class TemperatureReader(object):
             except IOError as e:
                 continue
             
-            device_id_file = join(_SMBUS_DEVICES_PATH, device, _SMBUS_DEVICEID_FILE)
+            device_id_file = join(device_abs, _SMBUS_DEVICEID_FILE)
             if not isfile(device_id_file):
                 continue
             try:
@@ -230,16 +250,16 @@ class TemperatureReader(object):
         Returns:
             float: The temperature of the memory bank.
         """
-        sb = __openMemorySMBusDevice()
+        sb = self.__openMemorySMBusDevice()
         if sb is not None:
             try:
                 raw_value = sb.read_word_data(_SMBUS_MEMORYTEMP_ADDRESS,
-                                              _SMBUS_MEMORYTEMP_COMMAND)
-            except IOError:
+                                              _SMBUS_MEMORYTEMP_REG_TEMPERATURE)
+            except IOError as e:
                 pass
             else:
-                temperature = ((raw_value & 0x0FF00) >> 8) |
-                              ((raw_value & 0x000FF) << 8)
+                temperature = (((raw_value & 0x0FF00) >> 8) |
+                               ((raw_value & 0x000FF) << 8))
                 return float(temperature) / 16.0
             finally:
                 try:

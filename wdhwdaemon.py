@@ -22,8 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import subprocess
+import sys
 import threading
-import time
 
 from wdhwlib.fancontroller import FanController, FanControllerCallback
 from wdhwlib.temperature import TemperatureReader
@@ -37,7 +37,7 @@ _logger = logging.getLogger(__name__)
 class PMCCommandsImpl(PMCCommands):
     
     def __init__(self):
-        super(PMCController, self).__init__()
+        super(PMCCommandsImpl, self).__init__()
     
     def interruptReceived(self):
         pass
@@ -51,8 +51,8 @@ class PMCCommandsImpl(PMCCommands):
 
 class FanControllerImpl(FanController):
     
-    def __init__(self, pmc, temperature_reader):
-        super(FanControllerImpl, self).__init__(pmc, temperature_reader)
+    def __init__(self, pmc, temperature_reader, disk_drives):
+        super(FanControllerImpl, self).__init__(pmc, temperature_reader, disk_drives)
         self.__pmc = pmc
     
     def controllerStarted(self):
@@ -122,14 +122,14 @@ class WdHwDaemon(object):
         pmc.setPowerLEDPulse(False)
         
         pmc_version = pmc.getVersion()
-        print "PMC manager connected to {1}.".format(pmc_version)
+        print "PMC manager connected to {0}.".format(pmc_version)
         
         print "Starting temperature reader ..."
         temperature_reader = TemperatureReader()
-        temperature_reader.start()
+        temperature_reader.connect()
         
         num_cpus = temperature_reader.getNumCPUCores()
-        print "Discovered {1} CPU cores.".format(num_cpus)
+        print "Discovered {0} CPU cores.".format(num_cpus)
         
         print "Starting fan controller ..."
         disks_to_monitor = [ "/dev/sda", "/dev/sdb", "/dev/sdc" ]
@@ -139,21 +139,50 @@ class WdHwDaemon(object):
         fan_controller.start()
         
         print ""
+        
         while self.__running:
             sys.stdout.write("Command: ")
-            cmd = sys.stdin.readline().lower()
+            cmd = sys.stdin.readline().strip().lower()
             if (cmd == ""):
-                sys.stdout.write("1: Get PMC version")
-                sys.stdout.write("0: Exit")
-            elif (cmd == "0"):
+                print "v: Get PMC version"
+                print "lr | lg | lb: Turn power LED on in red | green | blue"
+                print "l0: Turn power LED off"
+                print "br | bg | bb: Blink power LED on in red | green | blue"
+                print "b0: Turn power LED blinking off"
+                print "p1: Turn power LED pulsing on"
+                print "p0: Turn power LED pulsing off"
+                print "q: Exit"
+            elif (cmd == "q"):
                 self.__running = False
-            elif (cmd == "1"):
-                sys.stdout.write(pmc.getVersion())
+            elif (cmd == "v"):
+                print "Version: {0}".format(pmc.getVersion())
+            elif (cmd == "lb"):
+                pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
+            elif (cmd == "lr"):
+                pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
+            elif (cmd == "lg"):
+                pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_GREEN)
+            elif (cmd == "l0"):
+                pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
+            elif (cmd == "bb"):
+                pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_BLUE)
+            elif (cmd == "br"):
+                pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_RED)
+            elif (cmd == "bg"):
+                pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_GREEN)
+            elif (cmd == "b0"):
+                pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
+            elif (cmd == "p1"):
+                pmc.setPowerLEDPulse(True)
+            elif (cmd == "p0"):
+                pmc.setPowerLEDPulse(False)
+        
+        print ""
         
         print "Stopping fan controller ..."
         fan_controller.join()
         print "Stopping temperature reader ..."
-        temperature_reader.join()
+        temperature_reader.close()
         print "Stopping PMC manager ..."
         pmc.close()
         
@@ -192,6 +221,13 @@ class WdHwDaemon(object):
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger("")
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
     wdhwd = WdHwDaemon()
     wdhwd.start()
 

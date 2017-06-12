@@ -105,6 +105,8 @@ class ThermalConditionMonitor(object):
         """
         super(ThermalConditionMonitor, self).__init__()
         self.__lock = threading.RLock()
+        self.__running = False
+        self.__thread = None
         self.__level = None
         self.__temperature = None
         self.__interval = interval
@@ -152,7 +154,7 @@ class ThermalConditionMonitor(object):
                                  self._log_name,
                                  new_temperature,
                                  new_level)
-                elif abs(new_temperature - self.__temperature) >= log_variance:
+                elif abs(new_temperature - self.__temperature) >= self.__log_variance:
                     _logger.info("%s: Temperature changed from %.2f to %.2f (current level is %d)",
                                  self._log_name,
                                  self.__temperature,
@@ -171,7 +173,7 @@ class ThermalConditionMonitor(object):
         self.__update(None, None)
         
         while self.__running:
-            temperature = _getCurrentTemperature()
+            temperature = self._getCurrentTemperature()
             for condition in self.__conditions:
                 if condition.test(temperature):
                     self.__update(condition.level, temperature)
@@ -279,14 +281,15 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
             30,
             5.0,
             [
-                Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,  94.0),
-                Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  89.0),
-                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0),
-                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
-                Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
-                Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
-                Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_ALWAYS, None),
+                Condition(FanController.LEVEL_NORMAL, Condition.COMPARISON_ALWAYS, None),
+                #Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,  94.0),
+                #Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  89.0),
+                #Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0),
+                #Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0),
+                #Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
+                #Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
+                #Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
+                #Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
     
@@ -314,11 +317,11 @@ class CPUTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
-        super(CPUDeltaTemperatureMonitor, self).__init__(
+        super(CPUTemperatureMonitor, self).__init__(
             10,
             5.0,
             [
-                Condition(FanController.LEVEL_NORMAL, Condition.COMPARISON_ALWAYS, 0.0),
+                Condition(FanController.LEVEL_NORMAL, Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
     
@@ -528,7 +531,7 @@ class FanControllerCallbackHandler(Handler):
         elif msg.what == FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL:
             self.__callback.shutdownCancelPending()
         elif msg.what == FanControllerCallbackHandler.MSG_LEVEL_CHANGED:
-            self.__callback.levelChanged(msg.obj(0), msg.obj(1))
+            self.__callback.levelChanged(msg.obj[0], msg.obj[1])
         else:
             super(FanControllerCallbackHandler, self).handleMessage(msg)
 
@@ -548,6 +551,7 @@ class FanController(FanControllerCallback):
     LEVEL_SHUTDOWN = 6
     LEVEL_CRITICAL = 7
     
+    FAN_DEFAULT = 30
     FAN_MIN = 20
     FAN_MAX = 100
     FAN_STEP_INC = 10
@@ -579,12 +583,12 @@ class FanController(FanControllerCallback):
     
     def __run(self):
         """Runnable target of the fan controller thread."""
-        last_global_level = LEVEL_UNDER
+        last_global_level = FanController.LEVEL_UNDER
         self.__status_handler.sendMessage(
                 Message(FanControllerCallbackHandler.MSG_CTRL_STARTED))
         try:
             while self.__running:
-                global_level = LEVEL_UNDER
+                global_level = FanController.LEVEL_UNDER
                 for monitor in self.__monitors:
                     level = monitor.level
                     if global_level < level:
@@ -621,6 +625,10 @@ class FanController(FanControllerCallback):
                     if fan_speed > FanController.FAN_MIN:
                         fan_speed -= FanController.FAN_STEP_DEC
                         fan_speed_change = True
+                elif global_level == FanController.LEVEL_NORMAL:
+                    if fan_speed != FanController.FAN_DEFAULT:
+                        fan_speed = FanController.FAN_DEFAULT
+                        fan_speed_change = True
                 
                 if fan_speed_change:
                     if fan_speed > FanController.FAN_MAX:
@@ -628,8 +636,8 @@ class FanController(FanControllerCallback):
                     elif fan_speed < FanController.FAN_MIN:
                         fan_speed = FanController.FAN_MIN
                     _logger.info("%s: Setting fan speed to %d percent",
-                                     type(self).__name__,
-                                     fan_speed)
+                                 type(self).__name__,
+                                 fan_speed)
                     try:
                         self.__pmc.setFanSpeed(fan_speed)
                     except:
@@ -639,9 +647,9 @@ class FanController(FanControllerCallback):
                 
                 if global_level != last_global_level:
                     _logger.info("%s: Alert level changed from %d to %d",
-                                     type(self).__name__,
-                                     last_global_level,
-                                     global_level)
+                                 type(self).__name__,
+                                 last_global_level,
+                                 global_level)
                     if global_level >= FanController.LEVEL_CRITICAL:
                         self.__status_handler.sendMessage(
                             Message(FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE))
@@ -652,8 +660,8 @@ class FanController(FanControllerCallback):
                         self.__status_handler.sendMessage(
                             Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
                     self.__status_handler.sendMessage(
-                        Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED),
-                                (global_level, last_global_level))
+                        Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED,
+                                (global_level, last_global_level)))
                 
                 last_global_level = global_level
                 time.sleep(FanController.INTERVAL)
