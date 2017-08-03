@@ -51,8 +51,8 @@ class PMCCommandsImpl(PMCCommands):
 
 class FanControllerImpl(FanController):
     
-    def __init__(self, pmc, temperature_reader, disk_drives):
-        super(FanControllerImpl, self).__init__(pmc, temperature_reader, disk_drives)
+    def __init__(self, pmc, temperature_reader, disk_drives, num_dimms):
+        super(FanControllerImpl, self).__init__(pmc, temperature_reader, disk_drives, num_dimms)
         self.__pmc = pmc
     
     def controllerStarted(self):
@@ -133,9 +133,11 @@ class WdHwDaemon(object):
         
         print "Starting fan controller ..."
         disks_to_monitor = [ "/dev/sda", "/dev/sdb" ]
+        num_dimms = 2
         fan_controller = FanControllerImpl(pmc,
                                            temperature_reader,
-                                           disks_to_monitor)
+                                           disks_to_monitor,
+                                           num_dimms)
         fan_controller.start()
         
         print ""

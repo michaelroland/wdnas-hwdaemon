@@ -269,11 +269,12 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
     """Monitor for memory temperature.
     """
     
-    def __init__(self, temperature_reader):
+    def __init__(self, temperature_reader, dimm_index):
         """Initializes a new memory temperature monitor.
         
         Args:
             temperature_reader (TemperatureReader): An instance of the temperature reader.
+            dimm_index (int): Index of the memory bank and DIMM to monitor.
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
@@ -281,17 +282,17 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
             30,
             5.0,
             [
-                Condition(FanController.LEVEL_NORMAL, Condition.COMPARISON_ALWAYS, None),
-                #Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,  94.0),
-                #Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  89.0),
-                #Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0),
-                #Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0),
-                #Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
-                #Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
-                #Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
-                #Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_ALWAYS, None),
+                Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,  94.0),
+                Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  89.0),
+                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0),
+                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0),
+                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
+                Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
+                Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
+                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
+        self.__dimm_index = dimm_index
     
     def _getCurrentTemperature(self):
         """Get the current temperature reading of this monitor.
@@ -300,7 +301,7 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
             float: Current temperature reading of the sensor.
         """
         try:
-            return self.__reader.getMemoryTemperature()
+            return self.__reader.getMemoryTemperature(self.__dimm_index)
         except:
             return None
 
@@ -558,13 +559,14 @@ class FanController(FanControllerCallback):
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
     
-    def __init__(self, pmc, temperature_reader, disk_drives):
+    def __init__(self, pmc, temperature_reader, disk_drives, num_dimms):
         """Initializes a new fan controller.
         
         Args:
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
             disk_drives (List(str)): A list of HDD device names to monitor.
+            num_dimms (int): The number of memory DIMMs to monitor.
         """
         super(FanController, self).__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
@@ -574,12 +576,13 @@ class FanController(FanControllerCallback):
         self.__pmc = pmc
         self.__monitors = [
             SystemTemperatureMonitor(pmc),
-            MemoryTemperatureMonitor(temperature_reader),
             CPUTemperatureMonitor(temperature_reader),
             CPUDeltaTemperatureMonitor(temperature_reader),
         ]
         for disk in disk_drives:
             self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
+        for dimm_index in range(0, num_dimms):
+            self.__monitors.append(MemoryTemperatureMonitor(temperature_reader, dimm_index))
     
     def __run(self):
         """Runnable target of the fan controller thread."""

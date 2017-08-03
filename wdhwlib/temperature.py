@@ -47,15 +47,16 @@ _SMBUS_REGEX_DEVICEINDEX = re.compile(r"^i2c-([0-9]+)$")
 _SMBUS_REGEX_HEXID = re.compile(r"^\s*0x([0-9a-f]+)\s*$")
 _SMBUS_VENDORID_FILE = "device/device/vendor"
 _SMBUS_DEVICEID_FILE = "device/device/device"
-_SMBUS_MEMORYTEMP_VENDORID = "8086"
-_SMBUS_MEMORYTEMP_DEVICEID = "1f3c"
-_SMBUS_MEMORYTEMP_ADDRESS = 0x50
-_SMBUS_MEMORYTEMP_REG_CAPABILITY = 0
-_SMBUS_MEMORYTEMP_REG_TEMPERATURE = 5
+_SMBUS_MEMORY_SPD_VENDORID = "8086"
+_SMBUS_MEMORY_SPD_DEVICEID = "1f3c"
+_SMBUS_MEMORY_SPD_EEPROM_ADDRESS = 0x50
+_SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR = 32
+_SMBUS_MEMORY_SPD_TEMP_ADDRESS = 0x18
+_SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE = 5
 
 _HDSMART_COMMAND_BASE = ["/usr/sbin/hddtemp", "-n", "-u", "C"]
 _HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
-_HDSMART_REGEX_VALUE = re.compile(r"^([0-9]+)[^0-9]*$")
+_HDSMART_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
 
 
 class TemperatureReader(object):
@@ -218,7 +219,7 @@ class TemperatureReader(object):
                     match = _SMBUS_REGEX_HEXID.match(raw_value)
                     if match is None:
                         continue
-                    if _SMBUS_MEMORYTEMP_VENDORID != match.group(1).lower():
+                    if _SMBUS_MEMORY_SPD_VENDORID != match.group(1).lower():
                         continue
             except IOError as e:
                 continue
@@ -232,7 +233,7 @@ class TemperatureReader(object):
                     match = _SMBUS_REGEX_HEXID.match(raw_value)
                     if match is None:
                         continue
-                    if _SMBUS_MEMORYTEMP_DEVICEID != match.group(1).lower():
+                    if _SMBUS_MEMORY_SPD_DEVICEID != match.group(1).lower():
                         continue
             except IOError as e:
                 continue
@@ -244,17 +245,25 @@ class TemperatureReader(object):
             
         return None
     
-    def getMemoryTemperature(self):
-        """Get the temperature of the memory bank.
+    def getMemoryTemperature(self, dimm_index):
+        """Get the temperature of the memory DIMM.
         
+        Args:
+            dimm_index (int): Index of the memory bank and DIMM.
+
         Returns:
-            float: The temperature of the memory bank.
+            float: The temperature of the memory DIMM.
         """
         sb = self.__openMemorySMBusDevice()
         if sb is not None:
             try:
-                raw_value = sb.read_word_data(_SMBUS_MEMORYTEMP_ADDRESS,
-                                              _SMBUS_MEMORYTEMP_REG_TEMPERATURE)
+                ts_support = sb.read_byte_data(_SMBUS_MEMORY_SPD_EEPROM_ADDRESS + dimm_index,
+                                               _SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR)
+                if (ts_support & 0x080) == 0:
+                    return None
+
+                raw_value = sb.read_word_data(_SMBUS_MEMORY_SPD_TEMP_ADDRESS + dimm_index,
+                                              _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE)
             except IOError as e:
                 pass
             else:
