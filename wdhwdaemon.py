@@ -132,7 +132,7 @@ class WdHwDaemon(object):
         print "Discovered {0} CPU cores.".format(num_cpus)
         
         print "Starting fan controller ..."
-        disks_to_monitor = [ "/dev/sda", "/dev/sdb", "/dev/sdc" ]
+        disks_to_monitor = [ "/dev/sda", "/dev/sdb" ]
         fan_controller = FanControllerImpl(pmc,
                                            temperature_reader,
                                            disks_to_monitor)

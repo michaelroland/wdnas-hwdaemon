@@ -22,7 +22,11 @@ inaccuracies in this manual.*
 The packages *python*, *python-serial*, and *python-smbus* need to be installed
 in order to use the tools:
 
-    apt install python python-serial python-smbus
+    sudo apt install python python-serial python-smbus
+
+Moreover, *hddtemp* is necessary in order to monitor the hard disk temperature:
+
+    sudo apt install hddtemp
 
 
 ## GET LATEST VERSION

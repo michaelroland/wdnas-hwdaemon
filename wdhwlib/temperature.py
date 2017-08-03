@@ -53,9 +53,9 @@ _SMBUS_MEMORYTEMP_ADDRESS = 0x50
 _SMBUS_MEMORYTEMP_REG_CAPABILITY = 0
 _SMBUS_MEMORYTEMP_REG_TEMPERATURE = 5
 
-_HDSMART_COMMAND_BASE = ["/usr/sbin/smartctl", "-A", "-d", "ata"]
+_HDSMART_COMMAND_BASE = ["/usr/sbin/hddtemp", "-n", "-u", "C"]
 _HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
-_HDSMART_REGEX_TEMPERATURE = re.compile(r"^\s*194\s+\S+\s+[0-9a-fA-FxX]+\s+([0-9]+)\s+.*$")
+_HDSMART_REGEX_VALUE = re.compile(r"^([0-9]+)[^0-9]*$")
 
 
 class TemperatureReader(object):
@@ -279,11 +279,10 @@ class TemperatureReader(object):
         """
         try:
             result = subprocess.check_output(_HDSMART_COMMAND_BASE + [hdd])
-            for line in result.splitlines():
-                match = _HDSMART_REGEX_TEMPERATURE.match(line)
-                if match is not None:
-                    temperature = int(match.group(1))
-                    return float(temperature)
+            match = _HDSMART_REGEX_TEMPERATURE.match(result)
+            if match is not None:
+                temperature = int(match.group(1))
+                return float(temperature)
         except CalledProcessError:
             pass
         return None
