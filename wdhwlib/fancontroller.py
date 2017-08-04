@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import threading
-import time
 
 from messagequeue import Message
 from messagequeue.threaded import Handler
@@ -104,6 +103,7 @@ class ThermalConditionMonitor(object):
                 (the list is checked in order of precedence).
         """
         super(ThermalConditionMonitor, self).__init__()
+        self.__wait = threading.Condition()
         self.__lock = threading.RLock()
         self.__running = False
         self.__thread = None
@@ -172,16 +172,17 @@ class ThermalConditionMonitor(object):
         """Runnable target of the thermal condition monitor thread."""
         self.__update(None, None)
         
-        while self.__running:
-            temperature = self._getCurrentTemperature()
-            for condition in self.__conditions:
-                if condition.test(temperature):
-                    self.__update(condition.level, temperature)
-                    break
-            else:
-                self.__update(None, temperature)
-            
-            time.sleep(self.__interval)
+        with self.__wait:
+            while self.__running:
+                temperature = self._getCurrentTemperature()
+                for condition in self.__conditions:
+                    if condition.test(temperature):
+                        self.__update(condition.level, temperature)
+                        break
+                else:
+                    self.__update(None, temperature)
+                
+                self.__wait.wait(self.__interval)
     
     def start(self):
         """Start the thermal condition monitor thread.
@@ -207,6 +208,8 @@ class ThermalConditionMonitor(object):
         with self.__lock:
             if self.__running:
                 self.__running = False
+                with self.__wait:
+                    self.__wait.notifyAll()
                 self.__thread.join()
                 self.__thread = None
     
@@ -570,6 +573,7 @@ class FanController(FanControllerCallback):
         """
         super(FanController, self).__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
+        self.__wait = threading.Condition()
         self.__lock = threading.RLock()
         self.__running = False
         self.__thread = None
@@ -590,84 +594,85 @@ class FanController(FanControllerCallback):
         self.__status_handler.sendMessage(
                 Message(FanControllerCallbackHandler.MSG_CTRL_STARTED))
         try:
-            while self.__running:
-                global_level = FanController.LEVEL_UNDER
-                for monitor in self.__monitors:
-                    level = monitor.level
-                    if global_level < level:
-                        global_level = level
-                
-                fan_speed_change = False
-                fan_speed = 0
-                fan_rpm = 0
-                try:
-                    fan_speed = self.__pmc.getFanSpeed()
-                    fan_rpm = self.__pmc.getFanRPM()
-                except:
-                    # PMC or fan error
-                    fan_speed = FanController.FAN_MAX
-                    fan_speed_change = True
-                    self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
-                
-                if fan_rpm < FanController.FAN_RPM_MIN:
-                    fan_speed = FanController.FAN_MAX
-                    fan_speed_change = True
-                    self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
-                
-                if global_level >= FanController.LEVEL_HOT:
-                    if fan_speed < FanController.FAN_MAX:
-                        fan_speed = FanController.FAN_MAX
-                        fan_speed_change = True
-                elif global_level > FanController.LEVEL_NORMAL:
-                    if fan_speed < FanController.FAN_MAX:
-                        fan_speed += FanController.FAN_STEP_INC
-                        fan_speed_change = True
-                elif global_level < FanController.LEVEL_NORMAL:
-                    if fan_speed > FanController.FAN_MIN:
-                        fan_speed -= FanController.FAN_STEP_DEC
-                        fan_speed_change = True
-                elif global_level == FanController.LEVEL_NORMAL:
-                    if fan_speed != FanController.FAN_DEFAULT:
-                        fan_speed = FanController.FAN_DEFAULT
-                        fan_speed_change = True
-                
-                if fan_speed_change:
-                    if fan_speed > FanController.FAN_MAX:
-                        fan_speed = FanController.FAN_MAX
-                    elif fan_speed < FanController.FAN_MIN:
-                        fan_speed = FanController.FAN_MIN
-                    _logger.info("%s: Setting fan speed to %d percent",
-                                 type(self).__name__,
-                                 fan_speed)
+            with self.__wait:
+                while self.__running:
+                    global_level = FanController.LEVEL_UNDER
+                    for monitor in self.__monitors:
+                        level = monitor.level
+                        if global_level < level:
+                            global_level = level
+                    
+                    fan_speed_change = False
+                    fan_speed = 0
+                    fan_rpm = 0
                     try:
-                        self.__pmc.setFanSpeed(fan_speed)
+                        fan_speed = self.__pmc.getFanSpeed()
+                        fan_rpm = self.__pmc.getFanRPM()
                     except:
                         # PMC or fan error
+                        fan_speed = FanController.FAN_MAX
+                        fan_speed_change = True
                         self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
-                
-                if global_level != last_global_level:
-                    _logger.info("%s: Alert level changed from %d to %d",
-                                 type(self).__name__,
-                                 last_global_level,
-                                 global_level)
-                    if global_level >= FanController.LEVEL_CRITICAL:
+                                Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                    
+                    if fan_rpm < FanController.FAN_RPM_MIN:
+                        fan_speed = FanController.FAN_MAX
+                        fan_speed_change = True
                         self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE))
-                    elif global_level >= FanController.LEVEL_SHUTDOWN:
+                                Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                    
+                    if global_level >= FanController.LEVEL_HOT:
+                        if fan_speed < FanController.FAN_MAX:
+                            fan_speed = FanController.FAN_MAX
+                            fan_speed_change = True
+                    elif global_level > FanController.LEVEL_NORMAL:
+                        if fan_speed < FanController.FAN_MAX:
+                            fan_speed += FanController.FAN_STEP_INC
+                            fan_speed_change = True
+                    elif global_level < FanController.LEVEL_NORMAL:
+                        if fan_speed > FanController.FAN_MIN:
+                            fan_speed -= FanController.FAN_STEP_DEC
+                            fan_speed_change = True
+                    elif global_level == FanController.LEVEL_NORMAL:
+                        if fan_speed != FanController.FAN_DEFAULT:
+                            fan_speed = FanController.FAN_DEFAULT
+                            fan_speed_change = True
+                    
+                    if fan_speed_change:
+                        if fan_speed > FanController.FAN_MAX:
+                            fan_speed = FanController.FAN_MAX
+                        elif fan_speed < FanController.FAN_MIN:
+                            fan_speed = FanController.FAN_MIN
+                        _logger.info("%s: Setting fan speed to %d percent",
+                                     type(self).__name__,
+                                     fan_speed)
+                        try:
+                            self.__pmc.setFanSpeed(fan_speed)
+                        except:
+                            # PMC or fan error
+                            self.__status_handler.sendMessage(
+                                Message(FanControllerCallbackHandler.MSG_FAN_ERROR))
+                    
+                    if global_level != last_global_level:
+                        _logger.info("%s: Alert level changed from %d to %d",
+                                     type(self).__name__,
+                                     last_global_level,
+                                     global_level)
+                        if global_level >= FanController.LEVEL_CRITICAL:
+                            self.__status_handler.sendMessage(
+                                Message(FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE))
+                        elif global_level >= FanController.LEVEL_SHUTDOWN:
+                            self.__status_handler.sendMessage(
+                                Message(FanControllerCallbackHandler.MSG_SHUTDOWN_DELAYED))
+                        else:
+                            self.__status_handler.sendMessage(
+                                Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
                         self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_DELAYED))
-                    else:
-                        self.__status_handler.sendMessage(
-                            Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
-                    self.__status_handler.sendMessage(
-                        Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED,
-                                (global_level, last_global_level)))
-                
-                last_global_level = global_level
-                time.sleep(FanController.INTERVAL)
+                            Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED,
+                                    (global_level, last_global_level)))
+                    
+                    last_global_level = global_level
+                    self.__wait.wait(FanController.INTERVAL)
         finally:
             self.__status_handler.sendMessage(
                     Message(FanControllerCallbackHandler.MSG_CTRL_STOPPED))
@@ -699,6 +704,8 @@ class FanController(FanControllerCallback):
         with self.__lock:
             if self.__running:
                 self.__running = False
+                with self.__wait:
+                    self.__wait.notifyAll()
                 self.__thread.join()
                 self.__thread = None
                 for monitor in self.__monitors:
