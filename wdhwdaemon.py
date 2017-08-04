@@ -40,7 +40,7 @@ class PMCCommandsImpl(PMCCommands):
         super(PMCCommandsImpl, self).__init__()
     
     def interruptReceived(self):
-        isr = pmc.getInterruptStatus()
+        isr = self.getInterruptStatus()
         print "Interrupt received: {0}".format(isr)
         pass
     
@@ -64,6 +64,7 @@ class FanControllerImpl(FanController):
         pass
     
     def controllerStopped(self):
+        self.__pmc.setFanSpeed(80)
         self.__pmc.setPowerLEDPulse(False)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
@@ -209,6 +210,7 @@ class WdHwDaemon(object):
         temperature_reader.close()
         print "Stopping PMC manager ..."
         pmc.close()
+        print "Done."
         
     def start(self):
         """Start the hardware controller daemon.
