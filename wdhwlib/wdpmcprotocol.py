@@ -76,7 +76,8 @@ _PMC_COMMAND_DLB = "DLB"
 _PMC_COMMAND_BLK = "BLK"
 
 #PMC interrrupts
-PMC_INTERRUPT_MASK_ALL = 0xFF
+PMC_INTERRUPT_MASK_NONE = 0x00
+PMC_INTERRUPT_MASK_ALL  = 0xFF
 
 #PMC LED status
 PMC_LED_NONE                     = 0b00000000
@@ -401,7 +402,7 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: VER
         # Response: VER=WD PMC v[[:digit:]]+
-        #     "WD PMC v17"
+        #   - Observed value (always): "WD PMC v17"
         return self.__processor.transceiveCommand(_PMC_COMMAND_VERSION)
     
     def getConfiguration(self):
@@ -420,7 +421,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: CFG
         # Response: CFG=[[:xdigit:]]+
-        #     "03" ???
+        #   - Observed values:
+        #       - Upon power-up: "03"
+        #   - Interpretation: See setConfiguration()
         return self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION)
     
     def setConfiguration(self, configuration):
@@ -438,15 +441,11 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: CFG=%X
-        #     Parameter:
-        #         - Bit 0: automatic HDD power enable based on presence detection
-        #             (seems to be set upon power-up)
-        #         - Bit 1: ???
-        #             (seems to be set upon power-up)
-        #         - Bit 2-7: ???
-        #             (seems to be cleared upon power-up)
+        #   - Parameter (1 byte):
+        #       - Bit 0: automatic HDD power enable based on presence detection
+        #       - Bit 1: ??? (set upon power-up)
+        #       - Bit 2-7: ??? (cleared upon power-up)
         # Response: ACK | ERR
-        # TODO: Translate from useful status information
         configuration_mask = configuration
         configuration_field = "{0:02X}".format(configuration_mask & 0x0FF)
         self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION, status_field)
@@ -467,13 +466,15 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: STA
         # Response: STA=[[:xdigit:]]+
-        #     "4C" with drive 1 inserted
-        #     "6C" with drives 1 & 2 inserted
+        #   - Observed values:
+        #       - Only drive 1 inserted: "4c"
+        #       - Drives 1 & 2 inserted: "6c"
+        #   - Interpretation: ???
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             status_mask = int(match.group(1), 16)
-            # TODO: Translate to useful status information
+            # TODO: Translate to useful status information?!
             return status_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -496,8 +497,8 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: TMP
         # Response: TMP=[[:xdigit:]]+
-        #     31 degC???
-        #     40 degC???
+        #   - Observed values: "1f", "28", "2f", "2e"
+        #   - Interpretation: Hexadecimal value representing the temperature in degrees Celsius
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_TEMPERATURE)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -525,11 +526,13 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: LED
         # Response: LED=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "00"
+        #   - Interpretation: See setLEDStatus()
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_LED_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             status_mask = int(match.group(1), 16)
-            # TODO: Translate to useful status information
             return status_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -552,20 +555,19 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: LED=%X
-        #     Parameter:
-        #         - 0b00000000: all LEDs off
-        #         - 0b00000001: power LED blue
-        #         - 0b00000010: power LED red
-        #         - 0b00000011: power LED purple (blue+red)
-        #         - 0b00000100: power LED green
-        #         - 0b00000101: power LED turquois (blue+green)
-        #         - 0b00000110: power LED yellowish (red+green)
-        #         - 0b00000111: power LED white (blue+red+green)
-        #         - 0b00001000: USB button LED red
-        #         - 0b00010000: USB button LED blue
-        #         - 0b00011000: USB button LED purple (red+blue)
+        #   - Parameter (1 byte):
+        #       - 0b00000000: all LEDs off
+        #       - 0b00000001: power LED blue
+        #       - 0b00000010: power LED red
+        #       - 0b00000011: power LED purple (blue+red)
+        #       - 0b00000100: power LED green
+        #       - 0b00000101: power LED turquois (blue+green)
+        #       - 0b00000110: power LED yellowish (red+green)
+        #       - 0b00000111: power LED white (blue+red+green)
+        #       - 0b00001000: USB button LED red
+        #       - 0b00010000: USB button LED blue
+        #       - 0b00011000: USB button LED purple (red+blue)
         # Response: ACK | ERR
-        # TODO: Translate from useful status information
         status_field = "{0:02X}".format(on_mask & 0x01F)
         self.__processor.transceiveCommand(_PMC_COMMAND_LED_STATUS, status_field)
     
@@ -586,6 +588,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: BLK
         # Response: BLK=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "01"
+        #   - Interpretation: See setLEDBlink()
         status_field = self.__processor.transceiveCommand("BLK")
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -612,18 +617,18 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: BLK=%X
-        #     Parameter:
-        #         - 0b00000000: no blink
-        #         - 0b00000001: power LED blink blue
-        #         - 0b00000010: power LED blink red
-        #         - 0b00000011: power LED blink blue and red (toggles between the two)
-        #         - 0b00000100: power LED blink green
-        #         - 0b00000101: power LED blink blue and green (toggles between turquois (blue+green) and off)
-        #         - 0b00000110: power LED blink red and green (toggles between yellowish (red+green) and off)
-        #         - 0b00000111: power LED blink blue, red and green (toggles between blue and yellowish (red+green))
-        #         - 0b00001000: USB button LED blink red
-        #         - 0b00010000: USB button LED blink blue
-        #         - 0b00011000: USB button LED blink purple (red+blue)
+        #   - Parameter (1 byte):
+        #       - 0b00000000: no blink
+        #       - 0b00000001: power LED blink blue
+        #       - 0b00000010: power LED blink red
+        #       - 0b00000011: power LED blink blue and red (toggles between the two)
+        #       - 0b00000100: power LED blink green
+        #       - 0b00000101: power LED blink blue and green (toggles between turquois (blue+green) and off)
+        #       - 0b00000110: power LED blink red and green (toggles between yellowish (red+green) and off)
+        #       - 0b00000111: power LED blink blue, red and green (toggles between blue and yellowish (red+green))
+        #       - 0b00001000: USB button LED blink red
+        #       - 0b00010000: USB button LED blink blue
+        #       - 0b00011000: USB button LED blink purple (red+blue)
         # Response: ACK | ERR
         status_field = "{0:02X}".format(blink_mask & 0x01F)
         self.__processor.transceiveCommand("BLK", status_field)
@@ -644,6 +649,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: PLS
         # Response: PLS=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "00"
+        #   - Interpretation: See setPowerLEDPulse()
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_LED_PULSE)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -669,9 +677,13 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: PLS=%X
+        #   - Parameter (1 byte):
+        #       - 0b00000000: no pulse
+        #       - 0b00000001: power LED pulse blue
         # Response: ACK | ERR
-        status_field = "0"
-        if pulse: status_field = "1"
+        pulse_mask = PMC_LED_NONE
+        if pulse: status_field = PMC_LED_POWER_BLUE
+        status_field = "{0:02X}".format(pulse_mask & 0x001)
         self.__processor.transceiveCommand(_PMC_COMMAND_LED_PULSE, status_field)
 
     def getLCDBacklightIntensity(self):
@@ -690,6 +702,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: BKL
         # Response: BKL=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "64" -> 100%
+        #   - Interpretation: Hexadecimal representation of the LCD backlight intensity in percent
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_LCD_BACKLIGHT)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -715,6 +730,7 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: BKL=%X
+        #   - Parameter (1 byte): LCD backlight intensity in percent
         # Response: ACK | ERR
         if intensity < 0:
             intensity = 0
@@ -762,7 +778,10 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: RPM
         # Response: RPM=[[:xdigit:]]+
-        #     4320 rpm (at 80 %)
+        #   - Observed values:
+        #       - "10E0" at FAN=50 -> 4320 RPM with fan at 80%
+        #       - "0726" at FAN=1f -> 1830 RPM with fan at 31%
+        #   - Interpretation: Hexadecimal value representing the fan speed in RPM
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_FAN_RPM)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -789,6 +808,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: FAN
         # Response: FAN=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "50" -> fan at 80%
+        #   - Interpretation: Hexadecimal value representing the fan speed in percent
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -813,12 +835,13 @@ class PMCCommands(PMCInterruptCallback):
             PMCUnexpectedResponseError: If the received response does not
                 match the sent command.
         """
-        # Command: FAN=%X\r
+        # Command: FAN=%X
+        #   - Parameter (1 byte): fan speed in percent (from 0% to 99%)
         # Response: ACK | ERR
         if speed < 0:
             speed = 0
         elif speed > 99:
-            # the WD's wdhws seems to enforce this limit so we should probably do this too!
+            # WD's wdhws seems to enforce this limit so we should probably do this too!
             speed = 99
         speed_field = "{0:02X}".format(speed)
         self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED, speed_field)
@@ -838,10 +861,12 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: DE0
-        # Response: DE0=[[:xdigit:]]+   -> bitmask for bays
-        #     "F2" when drive 1 inserted, drive 2 not
-        #     "F3" when drive 1 & 2 inserted
-        #     value is changed as a result of DLS/DLC
+        # Response: DE0=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Only drive 1 inserted: "f2"
+        #       - Drives 1 & 2 inserted: "f3"
+        #       - Value changes as a result of DLS/DLC
+        #   - Interpretation: bitmask for drive bays
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_AVAILABLE)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -868,10 +893,12 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: DP0
-        # Response: DP0=[[:xdigit:]]+   -> bitmask for bays (
-        #     "8D" when drive 1 inserted, drive 2 not
-        #     "8C" when drive 1 & 2 inserted
-        #     value is NOT changed as a result of DLS/DLC
+        # Response: DP0=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Only drive 1 inserted: "8d"
+        #       - Drives 1 & 2 inserted: "8c"
+        #       - Value does NOT change as a result of DLS/DLC
+        #   - Interpretation: bitmask for drive bays
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWEREDUP)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -900,12 +927,14 @@ class PMCCommands(PMCInterruptCallback):
         """
         drivebay_mask_field = "{0:02X}".format(1 << bay_number)
         if poweron:
-            # Command: DLS=%X   <- bitmask for bays
+            # Command: DLS=%X
+            #   - Parameter (1 byte): bitmask for drive bays
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
                                                drivebay_mask_field)
         else:
-            # Command: DLC=%X   <- bitmask for bays
+            # Command: DLC=%X
+            #   - Parameter (1 byte): bitmask for drive bays
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
                                                drivebay_mask_field)
@@ -925,6 +954,7 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: IMR=FF
+        #   - Parameter (1 byte): ???
         # Response: ACK | ERR
         mask_field = "{0:02X}".format(mask)
         self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_MASK,
@@ -946,7 +976,10 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: ISR
         # Response: ISR=[[:xdigit:]]+
-        #     result = ~(STA & 0x68) & ISR;
+        #   - Observed values:
+        #       - Upon power-up: "00"
+        #   - Interpretation: ???
+        #         result = ~(STA & 0x68) & ISR;
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -973,7 +1006,10 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: DLB
         # Response: DLB=[[:xdigit:]]+
-        #     result = ((DLB >> (??? + 4)) & 1) != 0;
+        #   - Observed values:
+        #       - Upon power-up: "00"
+        #   - Interpretation: ???
+        #         result = ((DLB >> (??? + 4)) & 1) != 0;
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DLB)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -1000,6 +1036,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: BLK
         # Response: BLK=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "01"
+        #   - Interpretation: ???
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_BLK)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
