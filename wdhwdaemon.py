@@ -40,6 +40,8 @@ class PMCCommandsImpl(PMCCommands):
         super(PMCCommandsImpl, self).__init__()
     
     def interruptReceived(self):
+        isr = pmc.getInterruptStatus()
+        print "Interrupt received: {0}".format(isr)
         pass
     
     def sequenceError(self, code, value):
@@ -56,6 +58,7 @@ class FanControllerImpl(FanController):
         self.__pmc = pmc
     
     def controllerStarted(self):
+        print "Fan controller started."
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_BLUE)
         pass
@@ -64,6 +67,7 @@ class FanControllerImpl(FanController):
         self.__pmc.setPowerLEDPulse(False)
         self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_POWER_RED)
+        print "Fan controller stopped."
         pass
     
     def fanError(self):
@@ -117,12 +121,30 @@ class WdHwDaemon(object):
         pmc = PMCCommandsImpl()
         pmc.connect()
         
+        pmc_version = pmc.getVersion()
+        print "PMC manager connected to {0}.".format(pmc_version)
+        
+        pmc.getConfiguration()
+        pmc.getStatus()
+        pmc.getTemperature()
+        pmc.getLEDStatus()
+        pmc.getLEDBlink()
+        pmc.getPowerLEDPulse()
+        pmc.getLCDBacklightIntensity()
+        pmc.getFanRPM()
+        pmc.getFanSpeed()
+        pmc.getDriveEnabledMask()
+        pmc.getDrivePresenceMask()
+        pmc.getInterruptStatus()
+        pmc.getDLB()
+        pmc.getBLK()
+        
+        pmc.setInterruptMask()
+        
+        print "Setting power-up LED status ..."
         pmc.setPowerLEDPulse(False)
         pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
         pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_BLUE)
-        
-        pmc_version = pmc.getVersion()
-        print "PMC manager connected to {0}.".format(pmc_version)
         
         print "Starting temperature reader ..."
         temperature_reader = TemperatureReader()
