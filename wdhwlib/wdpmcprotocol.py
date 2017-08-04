@@ -682,7 +682,7 @@ class PMCCommands(PMCInterruptCallback):
         #       - 0b00000001: power LED pulse blue
         # Response: ACK | ERR
         pulse_mask = PMC_LED_NONE
-        if pulse: status_field = PMC_LED_POWER_BLUE
+        if pulse: pulse_mask = PMC_LED_POWER_BLUE
         status_field = "{0:02X}".format(pulse_mask & 0x001)
         self.__processor.transceiveCommand(_PMC_COMMAND_LED_PULSE, status_field)
 
@@ -978,6 +978,7 @@ class PMCCommands(PMCInterruptCallback):
         # Response: ISR=[[:xdigit:]]+
         #   - Observed values:
         #       - Upon power-up: "00"
+        #       - After sending IMR=FF and receiving ALERT: "6c" (same value as STA!?)
         #   - Interpretation: ???
         #         result = ~(STA & 0x68) & ISR;
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
