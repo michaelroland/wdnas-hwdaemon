@@ -30,7 +30,7 @@ class Handler(object):
     """A handler for posting and processing messages on a message queue thread.
     
     Attributes:
-        is_running: Is the associated message queue tread in running state?
+        is_running: Is the associated message queue thread in running state?
     """
     
     NEXT_MSG_ID = 0
