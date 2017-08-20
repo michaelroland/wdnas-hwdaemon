@@ -55,7 +55,7 @@ _SMBUS_MEMORY_SPD_TEMP_ADDRESS = 0x18
 _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE = 5
 
 _HDSMART_COMMAND_BASE = ["/usr/sbin/hddtemp", "-n", "-u", "C"]
-_HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
+HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
 _HDSMART_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
 
 
