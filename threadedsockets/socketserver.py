@@ -26,7 +26,7 @@ import socket
 from Queue import Queue
 import threading
 
-import SocketConnectionBrokenError, SocketSecurityException from threadedsockets
+from threadedsockets import SocketConnectionBrokenError, SocketSecurityException
 
 
 _logger = logging.getLogger(__name__)
