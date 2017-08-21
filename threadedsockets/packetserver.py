@@ -52,7 +52,7 @@ class PacketServerThread(socketserver.SocketServerThread):
         buffer_length = len(self.__read_buffer)
         
         if buffer_length > self.MAX_RECEIVE_BUFFER_SIZE:
-            raise PacketValidationError("Received data exceeds the maximum supported receive buffer size.")
+            raise ValueError("Received data exceeds the maximum supported receive buffer size.")
         
         offset = 0
         try:
