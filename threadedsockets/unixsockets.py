@@ -20,10 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-__version__ = "0.9"
-__author__  = "Michael Roland"
-
-
 import grp
 import logging
 import os
