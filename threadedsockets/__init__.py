@@ -24,6 +24,18 @@ __version__ = "0.9"
 __author__  = "Michael Roland"
 
 
+class SocketSecurityException(Exception):
+    """Exception class for security errors related to sockets.
+    """
+    pass
+
+
+class SocketConnectionBrokenError(IOError):
+    """Exception class for failures on socket IO operations not indicated by other socket errors.
+    """
+    pass
+
+
 if __name__ == "__main__":
     import sys
     sys.exit("This library is not intended to be run directly. Unit tests are not implemented.")

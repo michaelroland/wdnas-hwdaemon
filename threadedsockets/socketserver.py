@@ -26,20 +26,10 @@ import socket
 from Queue import Queue
 import threading
 
+import SocketConnectionBrokenError, SocketSecurityException from threadedsockets
+
 
 _logger = logging.getLogger(__name__)
-
-
-class SocketSecurityException(Exception):
-    """Exception class for security errors related to sockets.
-    """
-    pass
-
-
-class SocketConnectionBrokenError(IOError):
-    """Exception class for failures on socket IO operations not indicated by other socket errors.
-    """
-    pass
 
 
 class SocketServerThread(object):
