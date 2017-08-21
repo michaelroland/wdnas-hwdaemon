@@ -234,7 +234,7 @@ class SocketListener(object):
         """
         super(SocketListener, self).__init__()
         if not issubclass(server_thread_class, SocketServerThread):
-            raise TypeError("'server_thread_class' is not an subclass of SocketServerThread")
+            raise TypeError("'server_thread_class' is not a subclass of SocketServerThread")
         self.__server_thread_class = server_thread_class
         self.__lock = threading.RLock()
         self.__running = True
