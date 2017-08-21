@@ -53,13 +53,13 @@ class SocketServerThread(object):
         SocketServerThread.__NEXT_THREAD_ID += 1
         self._BYTES_TO_READ = 4096
         self.__listener = listener
+        self.__socket_lock = threading.RLock()
+        self.__socket = None
         self.__lock = threading.RLock()
         self.__running = True
         self.__thread = threading.Thread(target=self.__run)
         self.__thread.daemon = True
         self.__thread.start()
-        self.__socket_lock = threading.RLock()
-        self.__socket = None
     
     def connectionOpened(self, remote_address):
         """Callback invoked once a remote socket connection is opened and ready for transmission.
