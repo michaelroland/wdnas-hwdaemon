@@ -22,8 +22,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import socket
 
-import threadedsockets.socketclient as socketclient
 import tlv.ber
+
+import threadedsockets.socketclient as socketclient
 
 
 class BasicPacketClient(socketclient.BasicSocketClient):

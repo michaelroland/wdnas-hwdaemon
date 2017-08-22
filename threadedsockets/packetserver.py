@@ -22,8 +22,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import socket
 
-import threadedsockets.socketserver as socketserver
 import tlv.ber
+
+import threadedsockets.socketserver as socketserver
 
 
 class PacketServerThread(socketserver.SocketServerThread):
