@@ -38,6 +38,7 @@ class SocketServerThread(object):
     Attributes:
         is_busy: Is the socket connection busy with an active connection?
         is_running: Is the socket connection handler thread in running state?
+        thread_id: An identifier for the instance of the connection handler.
     """
     
     __NEXT_THREAD_ID = 0
@@ -204,6 +205,11 @@ class SocketServerThread(object):
         """bool: Is the socket connection handler thread in running state?"""
         with self.__lock:
             return self.__running
+    
+    @property
+    def thread_id(self):
+        """int: An identifier for the instance of the connection handler."""
+        return self.__thread_id
 
 
 class SocketListener(object):
