@@ -42,7 +42,7 @@ class PacketServerThread(socketserver.SocketServerThread):
         self.__read_buffer = bytearray()
         super(PacketServerThread, self).__init__(listener)
     
-    def connectionOpened(self, remote_address):
+    def connectionOpened(self, remote_socket, remote_address):
         raise SocketSecurityException("The default implementation refuses all connections.")
     
     def connectionClosed(self, error):

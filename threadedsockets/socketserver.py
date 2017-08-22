@@ -62,13 +62,14 @@ class SocketServerThread(object):
         self.__thread.daemon = True
         self.__thread.start()
     
-    def connectionOpened(self, remote_address):
+    def connectionOpened(self, remote_socket, remote_address):
         """Callback invoked once a remote socket connection is opened and ready for transmission.
         
         The default implementation refuses all connections. Implementations must override
         this method to allow incoming connections.
         
         Args:
+            remote_socket (socket.SocketType): The remote socket.
             remote_address (Any): The remote socket address (the exact type depends on
                 the address family).
         
