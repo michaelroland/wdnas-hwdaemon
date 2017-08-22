@@ -21,14 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import grp
-import logging
 import os
 import os.path
 import socket
 import stat
-
-
-_logger = logging.getLogger(__name__)
 
 
 class UnixSocketFactory(object):

@@ -20,14 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import logging
 import socket
 import threading
 
 from threadedsockets import SocketConnectionBrokenError
-
-
-_logger = logging.getLogger(__name__)
 
 
 class BasicSocketClient(object):
