@@ -86,20 +86,6 @@ class PacketServerThread(socketserver.SocketServerThread):
         self.sendData(data_object.serialize())
 
 
-class PacketSocketListener(socketserver.SocketListener):
-    """A server socket listener that spawns new ``PacketServerThread`` threads for incoming connections.
-    """
-
-    def __init__(self, server_socket, max_clients=10):
-        """Initializes a new server socket listener.
-        
-        Args:
-            server_socket (socket.SocketType): A bound server socket.
-            max_clients (int): Maximum number of concurrent clients.
-        """
-        super(PacketSocketListener, self).__init__(server_socket, max_clients, PacketServerThread)
-
-
 if __name__ == "__main__":
     import sys
     sys.exit("This library is not intended to be run directly. Unit tests are not implemented.")
