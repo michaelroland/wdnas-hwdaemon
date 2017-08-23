@@ -148,7 +148,7 @@ class BerTlv(object):
         """
         serialized = bytearray(self.__tag_bytes)
         
-        if value is None:
+        if self.__value is None:
             serialized.extend([0])
         else:
             length = len(self.__value)
