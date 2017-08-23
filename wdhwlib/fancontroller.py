@@ -90,6 +90,11 @@ class Condition(object):
 
 class ThermalConditionMonitor(object):
     """Abstract monitor for thermal conditions.
+    
+    Attributes:
+        is_running: Is the thermal condition monitor thread in running state?
+        level: Thermal condition level.
+        temperature: Last observed temperature.
     """
     
     def __init__(self, interval, log_variance, conditions):
@@ -224,6 +229,12 @@ class ThermalConditionMonitor(object):
         """int: Thermal condition level."""
         with self.__lock:
             return self.__level
+    
+    @property
+    def temperature(self):
+        """int: Last observed temperature."""
+        with self.__lock:
+            return self.__temperature
     
 
 class SystemTemperatureMonitor(ThermalConditionMonitor):
