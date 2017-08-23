@@ -66,8 +66,8 @@ _PMC_COMMAND_LCD_TEXT_N = "LN{:d}"
 _PMC_COMMAND_TEMPERATURE = "TMP"
 _PMC_COMMAND_FAN_RPM = "RPM"
 _PMC_COMMAND_FAN_SPEED = "FAN"
-_PMC_COMMAND_DRIVEBAY_AVAILABLE = "DE0"
-_PMC_COMMAND_DRIVEBAY_POWEREDUP = "DP0"
+_PMC_COMMAND_DRIVEBAY_DRIVE_ENABLED = "DE0"
+_PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT = "DP0"
 _PMC_COMMAND_DRIVEBAY_POWERUP_SET = "DLS"
 _PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR = "DLC"
 _PMC_COMMAND_INTERRUPT_MASK = "IMR"
@@ -867,7 +867,7 @@ class PMCCommands(PMCInterruptCallback):
         #       - Drives 1 & 2 inserted: "f3"
         #       - Value changes as a result of DLS/DLC
         #   - Interpretation: bitmask for drive bays
-        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_AVAILABLE)
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_ENABLED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             drivebay_mask = int(match.group(1), 16)
@@ -899,7 +899,7 @@ class PMCCommands(PMCInterruptCallback):
         #       - Drives 1 & 2 inserted: "8c"
         #       - Value does NOT change as a result of DLS/DLC
         #   - Interpretation: bitmask for drive bays
-        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWEREDUP)
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             drivebay_mask = int(match.group(1), 16)
