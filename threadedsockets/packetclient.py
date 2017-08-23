@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""BER TLV Packet-based Client-side Socket Interface.
+"""Packet-based Client-side Socket Interface.
 
 Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
 
@@ -22,31 +22,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import socket
 
-import tlv.ber
-
+import threadedsockets.packets as packets
 import threadedsockets.socketclient as socketclient
 
 
 class BasicPacketClient(socketclient.BasicSocketClient):
-    """A basic client socket wrapper to send and receive BER TLV packet-structured data using a ``socket.SocketType``.
+    """A basic client socket wrapper to send and receive packet-structured data using a ``socket.SocketType``.
     """
 
-    MAX_RECEIVE_BUFFER_SIZE = 0x4000000
+    MAX_RECEIVE_BUFFER_SIZE = 0x40000
     
-    def __init__(self, client_socket):
+    def __init__(self, client_socket, packet_class=packets.BasicPacket):
         """Initializes a new client socket wrapper.
         
         Args:
             client_socket (socket.SocketType): A connected client socket.
+            packet_class (type(packets.BasicPacket)): A packet parser implementation.
         """
         self.__read_buffer = bytearray()
+        self.__packet_class = packet_class
         super(BasicPacketClient, self).__init__(client_socket)
     
     def receivePacket(self):
-        """Receive a single BER TLV data packet.
+        """Receive a single protocol packet.
         
         Returns:
-            tlv.ber.BerTlv: The BER TLV data packet.
+            packets.BasicPacket: The received packet.
         """
         while True:
             data = self.receiveData()
@@ -59,25 +60,30 @@ class BasicPacketClient(socketclient.BasicSocketClient):
             offset = 0
             try:
                 if offset < buffer_length:
-                    (data_object, next_offset) = tlv.ber.BerTlv.parse(self.__read_buffer, offset)
+                    (packet, next_offset) = self.__packet_class.parse(self.__read_buffer, offset)
                     offset = next_offset
-                    return data_object
-            except tlv.ber.IncompleteTlvDataError:
+                    return packet
+            except packets.IncompletePacketError:
                 pass
+            except packets.InvalidPacketError:
+                offset += 1
+                if offset < buffer_length:
+                    offset = buffer_length
             finally:
-                self.__read_buffer[0:offset] = []
+                if offset > 0:
+                    self.__read_buffer[0:offset] = []
     
-    def sendPacket(self, data_object):
-        """Send a BER TLV data packet.
+    def sendPacket(self, packet):
+        """Send a single protocol packet.
         
         Args:
-            data_object (tlv.ber.BerTlv): The BER TLV data packet.
+            packet (packets.BasicPacket): The packet to send.
         """
-        self.sendData(data_object.serialize())
+        self.sendData(packet.serialize())
 
 
 class ThreadedPacketClient(socketclient.ThreadedSocketClient):
-    """A client socket wrapper to send and receive BER TLV packet-structured data using a ``socket.SocketType``.
+    """A client socket wrapper to send and receive packet-structured data using a ``socket.SocketType``.
     
     Data is continously received using a receiver thread.
     
@@ -85,12 +91,17 @@ class ThreadedPacketClient(socketclient.ThreadedSocketClient):
         is_running: Is the socket connection handler thread in running state?
     """
     
-    def __init__(self, client_socket):
+    MAX_RECEIVE_BUFFER_SIZE = 0x40000
+    
+    def __init__(self, client_socket, packet_class=packets.BasicPacket):
         """Initializes a new client socket wrapper.
         
         Args:
             client_socket (socket.SocketType): A connected client socket.
+            packet_class (type(packets.BasicPacket)): A packet parser implementation.
         """
+        self.__read_buffer = bytearray()
+        self.__packet_class = packet_class
         super(ThreadedPacketClient, self).__init__(client_socket)
     
     def dataReceived(self, data):
@@ -103,32 +114,37 @@ class ThreadedPacketClient(socketclient.ThreadedSocketClient):
         offset = 0
         try:
             while offset < buffer_length:
-                (data_object, next_offset) = tlv.ber.BerTlv.parse(self.__read_buffer, offset)
-                offset = next_offset
-                self.packetReceived(data_object)
-        except tlv.ber.IncompleteTlvDataError:
+                try:
+                    (packet, next_offset) = self.__packet_class.parse(self.__read_buffer, offset)
+                except packets.InvalidPacketError:
+                    offset += 1
+                else:
+                    offset = next_offset
+                    self.packetReceived(packet)
+        except packets.IncompletePacketError:
             pass
         finally:
-            self.__read_buffer[0:offset] = []
+            if offset > 0:
+                self.__read_buffer[0:offset] = []
     
-    def packetReceived(self, data_object):
-        """Callback for receiving a single BER TLV data packet.
+    def packetReceived(self, packet):
+        """Callback for receiving a single protocol packet.
         
         This callback is invoked on the receiver thread and blocking may result
         in loss of incoming data in full-duplex communication.
         
         Args:
-            data_object (tlv.ber.BerTlv): The BER TLV data packet.
+            packet (packets.BasicPacket): The received packet.
         """
         pass
     
-    def sendPacket(self, data_object):
-        """Send a BER TLV data packet.
+    def sendPacket(self, packet):
+        """Send a single protocol packet.
         
         Args:
-            data_object (tlv.ber.BerTlv): The BER TLV data packet.
+            packet (packets.BasicPacket): The packet to send.
         """
-        self.sendData(data_object.serialize())
+        self.sendData(packet.serialize())
 
 
 if __name__ == "__main__":
