@@ -28,6 +28,7 @@ from threadedsockets.socketserver import SocketListener
 from threadedsockets.unixsockets import UnixSocketFactory
 
 import wdhwdaemon.daemon
+import wdhwdaemon
 
 
 _logger = logging.getLogger(__name__)
@@ -160,14 +161,20 @@ class ResponsePacket(CommandPacket):
         Raises:
             InvalidPacketError: If the parameter is too large to fit into the packet.
         """
-        self.__error_code = error_code
-        self.__parameter = parameter
         if error_code != ResponsePacket.ERR_NO_ERROR:
             flags |= self.FLAG_ERROR
+            self.__error_code = error_code
+            self.__parameter = parameter
             parameter = bytearray([error_code])
-            parameter.extend(self.__parameter)
+            if self.__parameter is not None:
+                parameter.extend(self.__parameter)
         else:
-            flags &= ~self.FLAG_ERROR
+            if (flags & self.FLAG_ERROR) == self.FLAG_ERROR:
+                if (parameter is None) or (len(parameter) < 1):
+                    flags &= ~self.FLAG_ERROR
+                else:
+                    self.__error_code = parameter[0]
+                    self.__parameter = parameter[1:]
         super(ResponsePacket, self).__init__(identifier, parameter, flags)
     
     @property
@@ -288,8 +295,6 @@ class ServerThreadImpl(PacketServerThread):
     """Socket server thread implementation for the WD Hardware Controller Server.
     """
     
-    VERSION = "WDHWD v1.0"
-    
     def __init__(self, listener):
         """Initializes a new socket server thread that processes packet-structured data.
         
@@ -355,7 +360,7 @@ class ServerThreadImpl(PacketServerThread):
                 raise CloseConnectionWarning("End of transmission")
     
     def __commandVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(bytearray(self.VERSION)))
+        self.sendPacket(packet.createResponse(bytearray(wdhwdaemon.WDHWD_PROTOCOL_VERSION)))
     
     def __commandDaemonShutdown(self, packet):
         self.sendPacket(packet.createResponse(mirror_keep_alive=False))
