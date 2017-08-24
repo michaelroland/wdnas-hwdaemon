@@ -144,14 +144,6 @@ class ResponsePacket(CommandPacket):
     ERR_COMMAND_NOT_IMPLEMENTED = 0x0C0
     ERR_EXECUTION_FAILED = 0x0EF
     
-    # LED command format
-    RESP_LED_OFFSET_RED = 0
-    RESP_LED_OFFSET_GREEN = 1
-    RESP_LED_OFFSET_BLUE = 2
-    RESP_LED_CONST = 0b00000001
-    RESP_LED_BLINK = 0b00000010
-    RESP_LED_PULSE = 0b00000100
-    
     PACKET_MAGIC_BYTE = 0x05A
     
     def __init__(self, identifier, parameter=None, flags=0, error_code=ResponsePacket.ERR_NO_ERROR):
@@ -192,6 +184,104 @@ class ResponsePacket(CommandPacket):
     def parameter(self):
         """bytearray: The parameter value of this packet."""
         return self.__parameter
+
+
+class LEDStatus(object):
+    """LED status indicator.
+    
+    Attributes:
+        is_error: Does this packet indicate an error?
+    """
+    
+    LED_OFFSET_MASK = 0
+    LED_OFFSET_RED = 1
+    LED_OFFSET_GREEN = 2
+    LED_OFFSET_BLUE = 3
+    FLAG_LED_CONST = 0b00000001
+    FLAG_LED_BLINK = 0b00000010
+    FLAG_LED_PULSE = 0b00000100
+    
+    def __init__(self, raw_data):
+        """Initializes a new LED status indicator.
+        
+        Args:
+            raw_data (bytearray): The raw packet parameter value of the LED status indicator.
+        
+        Raises:
+            ValueError: If the raw data is not a valid LED status.
+        """
+        super(LEDStatus, self).__init__()
+        if (raw_data is None) or (len(raw_data) != 4):
+                raise ValueError("Invalid parameter raw_data")
+            self.mask_const = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_CONST) != 0
+            self.mask_blink = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_BLINK) != 0
+            self.mask_pulse = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_PULSE) != 0
+            self.red_const = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_CONST) != 0
+            self.red_blink = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_BLINK) != 0
+            self.red_pulse = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_PULSE) != 0
+            self.green_const = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_CONST) != 0
+            self.green_blink = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_BLINK) != 0
+            self.green_pulse = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_PULSE) != 0
+            self.blue_const = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_CONST) != 0
+            self.blue_blink = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_BLINK) != 0
+            self.blue_pulse = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_PULSE) != 0
+    
+    def serialize(self):
+        raw_data = bytearray([0, 0, 0, 0])
+        if self.mask_const:
+            raw_data[self.LED_OFFSET_MASK] |= self.FLAG_LED_CONST
+        if self.mask_blink:
+            response[self.LED_OFFSET_MASK] |= self.FLAG_LED_BLINK
+        if self.mask_pulse:
+            response[self.LED_OFFSET_MASK] |= self.FLAG_LED_PULSE
+        if self.red_const:
+            raw_data[self.LED_OFFSET_RED] |= self.FLAG_LED_CONST
+        if self.red_blink:
+            response[self.LED_OFFSET_RED] |= self.FLAG_LED_BLINK
+        if self.red_pulse:
+            response[self.LED_OFFSET_RED] |= self.FLAG_LED_PULSE
+        if self.green_const:
+            raw_data[self.LED_OFFSET_GREEN] |= self.FLAG_LED_CONST
+        if self.green_blink:
+            response[self.LED_OFFSET_GREEN] |= self.FLAG_LED_BLINK
+        if self.green_pulse:
+            response[self.LED_OFFSET_GREEN] |= self.FLAG_LED_PULSE
+        if self.blue_const:
+            raw_data[self.LED_OFFSET_BLUE] |= self.FLAG_LED_CONST
+        if self.blue_blink:
+            response[self.LED_OFFSET_BLUE] |= self.FLAG_LED_BLINK
+        if self.blue_pulse:
+            response[self.LED_OFFSET_BLUE] |= self.FLAG_LED_PULSE
+    
+    @classmethod
+    def fromPowerLED(clazz, status, blink, pulse):
+        self.mask_const = True
+        self.mask_blink = True
+        self.mask_pulse = True
+        self.red_const = (status & wdpmcprotocol.PMC_LED_POWER_RED) != 0
+        self.red_blink = (blink & wdpmcprotocol.PMC_LED_POWER_RED) != 0
+        self.red_pulse = False
+        self.green_const = (status & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
+        self.green_blink = (blink & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
+        self.green_pulse = False
+        self.blue_const = (status & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
+        self.blue_blink = (blink & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
+        self.blue_pulse = pulse
+    
+    @classmethod
+    def fromUSBLED(clazz, status, blink):
+        self.mask_const = True
+        self.mask_blink = True
+        self.mask_pulse = True
+        self.red_const = (status & wdpmcprotocol.PMC_LED_USB_RED) != 0
+        self.red_blink = (blink & wdpmcprotocol.PMC_LED_USB_RED) != 0
+        self.red_pulse = False
+        self.green_const = False
+        self.green_blink = False
+        self.green_pulse = False
+        self.blue_const = (status & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
+        self.blue_blink = (blink & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
+        self.blue_pulse = False
 
 
 class ServerThreadImpl(PacketServerThread):
@@ -317,7 +407,40 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createResponse(bytearray([blk])))
     
     def __commandPowerLEDSet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        try:
+            ledStatus = LEDStatus(packet.parameter)
+        except ValueError:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        else:
+            try:
+                if ledStatus.mask_pulse and not ledStatus.blue_pulse:
+                    self.__hw_daemon.pmc.setPowerLEDPulse(False)
+                if ledStatus.mask_blink:
+                    blink = self.__hw_daemon.pmc.getLEDBlink()
+                    blink &= ~wdpmcprotocol.PMC_LED_POWER_MASK
+                    if ledStatus.blue_blink:
+                        blink |= wdpmcprotocol.PMC_LED_POWER_BLUE
+                    if ledStatus.green_blink:
+                        blink |= wdpmcprotocol.PMC_LED_POWER_GREEN
+                    if ledStatus.red_blink:
+                        blink |= wdpmcprotocol.PMC_LED_POWER_RED
+                    self.__hw_daemon.pmc.setLEDBlink(blink)
+                if ledStatus.mask_const:
+                    status = self.__hw_daemon.pmc.getLEDStatus()
+                    status &= ~wdpmcprotocol.PMC_LED_POWER_MASK
+                    if ledStatus.blue_const:
+                        status |= wdpmcprotocol.PMC_LED_POWER_BLUE
+                    if ledStatus.green_const:
+                        status |= wdpmcprotocol.PMC_LED_POWER_GREEN
+                    if ledStatus.red_const:
+                        status |= wdpmcprotocol.PMC_LED_POWER_RED
+                    self.__hw_daemon.pmc.setLEDStatus(status)
+                if ledStatus.mask_pulse and ledStatus.blue_pulse:
+                    self.__hw_daemon.pmc.setPowerLEDPulse(True)
+            except:
+                self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+            else:
+                self.sendPacket(packet.createResponse())
     
     def __commandPowerLEDGet(self, packet):
         try:
@@ -327,25 +450,36 @@ class ServerThreadImpl(PacketServerThread):
         except:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
-            response = bytearray([0, 0, 0])
-            if (status & wdpmcprotocol.PMC_LED_POWER_RED) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_RED] |= ResponsePacket.RESP_LED_CONST
-            if (blink & wdpmcprotocol.PMC_LED_POWER_RED) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_RED] |= ResponsePacket.RESP_LED_BLINK
-            if (status & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_GREEN] |= ResponsePacket.RESP_LED_CONST
-            if (blink & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_GREEN] |= ResponsePacket.RESP_LED_BLINK
-            if (status & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_BLUE] |= ResponsePacket.RESP_LED_CONST
-            if (blink & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_BLUE] |= ResponsePacket.RESP_LED_BLINK
-            if pulse:
-                response[ResponsePacket.RESP_LED_OFFSET_BLUE] |= ResponsePacket.RESP_LED_PULSE
-            self.sendPacket(packet.createResponse(response))
+            ledStatus = LEDStatus.fromPowerLED(status, blink, pulse)
+            self.sendPacket(packet.createResponse(ledStatus.serialize()))
     
     def __commandUSBLEDSet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        try:
+            ledStatus = LEDStatus(packet.parameter)
+        except ValueError:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        else:
+            try:
+                if ledStatus.mask_blink:
+                    blink = self.__hw_daemon.pmc.getLEDBlink()
+                    blink &= ~wdpmcprotocol.PMC_LED_USB_MASK
+                    if ledStatus.blue_blink:
+                        blink |= wdpmcprotocol.PMC_LED_USB_BLUE
+                    if ledStatus.red_blink:
+                        blink |= wdpmcprotocol.PMC_LED_USB_RED
+                    self.__hw_daemon.pmc.setLEDBlink(blink)
+                if ledStatus.mask_const:
+                    status = self.__hw_daemon.pmc.getLEDStatus()
+                    status &= ~wdpmcprotocol.PMC_LED_USB_MASK
+                    if ledStatus.blue_const:
+                        status |= wdpmcprotocol.PMC_LED_USB_BLUE
+                    if ledStatus.red_const:
+                        status |= wdpmcprotocol.PMC_LED_USB_RED
+                    self.__hw_daemon.pmc.setLEDStatus(status)
+            except:
+                self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+            else:
+                self.sendPacket(packet.createResponse())
     
     def __commandUSBLEDGet(self, packet):
         try:
@@ -354,19 +488,18 @@ class ServerThreadImpl(PacketServerThread):
         except:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
-            response = bytearray([0, 0, 0])
-            if (status & wdpmcprotocol.PMC_LED_USB_RED) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_RED] |= ResponsePacket.RESP_LED_CONST
-            if (blink & wdpmcprotocol.PMC_LED_USB_RED) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_RED] |= ResponsePacket.RESP_LED_BLINK
-            if (status & wdpmcprotocol.PMC_LED_USB_BLUE) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_BLUE] |= ResponsePacket.RESP_LED_CONST
-            if (blink & wdpmcprotocol.PMC_LED_USB_BLUE) != 0:
-                response[ResponsePacket.RESP_LED_OFFSET_BLUE] |= ResponsePacket.RESP_LED_BLINK
-            self.sendPacket(packet.createResponse(response))
+            ledStatus = LEDStatus.fromUSBLED(status, blink)
+            self.sendPacket(packet.createResponse(ledStatus.serialize()))
     
     def __commandLCDBacklightIntensitySet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        if (packet.parameter is None) or (len(packet.parameter) != 1):
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        try:
+            self.__hw_daemon.pmc.setLCDBacklightIntensity(packet.parameter[0])
+        except:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse())
     
     def __commandLCDBacklightIntensityGet(self, packet):
         try:
@@ -414,13 +547,27 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createResponse(bytearray([speed])))
     
     def __commandDrivePresentGet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        if (packet.parameter is None) or (len(packet.parameter) != 2):
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        try:
+            bay_number = packet.parameter[0]
+            enable = packet.parameter[1] != 0
+            mask = self.__hw_daemon.pmc.setDriveEnabled(bay_number, enable)
+        except:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse())
     
     def __commandDriveEnabledSet(self, packet):
         self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
     
     def __commandDriveEnabledGet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        try:
+            mask = self.__hw_daemon.pmc.getDriveEnabledMask()
+        except:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([mask])))
 
 
 class WdHwServer(SocketListener):
