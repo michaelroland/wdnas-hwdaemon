@@ -208,30 +208,33 @@ class LEDStatus(object):
     FLAG_LED_BLINK = 0b00000010
     FLAG_LED_PULSE = 0b00000100
     
-    def __init__(self, raw_data):
+    def __init__(self, raw_data=None):
         """Initializes a new LED status indicator.
         
         Args:
-            raw_data (bytearray): The raw packet parameter value of the LED status indicator.
+            raw_data (bytearray): The optional raw packet parameter value of the LED
+                status indicator.
         
         Raises:
             ValueError: If the raw data is not a valid LED status.
         """
         super(LEDStatus, self).__init__()
-        if (raw_data is None) or (len(raw_data) != 4):
-                raise ValueError("Invalid parameter raw_data")
-            self.mask_const = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_CONST) != 0
-            self.mask_blink = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_BLINK) != 0
-            self.mask_pulse = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_PULSE) != 0
-            self.red_const = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_CONST) != 0
-            self.red_blink = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_BLINK) != 0
-            self.red_pulse = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_PULSE) != 0
-            self.green_const = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_CONST) != 0
-            self.green_blink = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_BLINK) != 0
-            self.green_pulse = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_PULSE) != 0
-            self.blue_const = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_CONST) != 0
-            self.blue_blink = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_BLINK) != 0
-            self.blue_pulse = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_PULSE) != 0
+        if raw_data is None:
+            raw_data = bytearray([0, 0, 0, 0])
+        if len(raw_data) != 4:
+            raise ValueError("Invalid parameter raw_data")
+        self.mask_const = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_CONST) != 0
+        self.mask_blink = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_BLINK) != 0
+        self.mask_pulse = (raw_data[self.LED_OFFSET_MASK] & self.FLAG_LED_PULSE) != 0
+        self.red_const = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_CONST) != 0
+        self.red_blink = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_BLINK) != 0
+        self.red_pulse = (raw_data[self.LED_OFFSET_RED] & self.FLAG_LED_PULSE) != 0
+        self.green_const = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_CONST) != 0
+        self.green_blink = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_BLINK) != 0
+        self.green_pulse = (raw_data[self.LED_OFFSET_GREEN] & self.FLAG_LED_PULSE) != 0
+        self.blue_const = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_CONST) != 0
+        self.blue_blink = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_BLINK) != 0
+        self.blue_pulse = (raw_data[self.LED_OFFSET_BLUE] & self.FLAG_LED_PULSE) != 0
     
     def serialize(self):
         raw_data = bytearray([0, 0, 0, 0])
@@ -360,14 +363,14 @@ class ServerThreadImpl(PacketServerThread):
                 raise CloseConnectionWarning("End of transmission")
     
     def __commandVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(bytearray(wdhwdaemon.WDHWD_PROTOCOL_VERSION)))
+        self.sendPacket(packet.createResponse(wdhwdaemon.WDHWD_PROTOCOL_VERSION.encode('utf_8', 'ignore')))
     
     def __commandDaemonShutdown(self, packet):
         self.sendPacket(packet.createResponse(mirror_keep_alive=False))
         self.__hw_daemon.shutdown()
     
     def __commandPMCVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(bytearray(self.__hw_daemon.pmc_version)))
+        self.sendPacket(packet.createResponse(self.__hw_daemon.pmc_version.encode('utf_8', 'ignore')))
     
     def __commandPMCStatusGet(self, packet):
         try:
@@ -515,7 +518,15 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createResponse(bytearray([intensity])))
     
     def __commandLCDTextSet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        if (packet.parameter is None) or (len(packet.parameter) < 1):
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        try:
+            self.__hw_daemon.pmc.setLCDText(packet.parameter[0],
+                                            packet.parameter[1:].decode('us-ascii', 'ignore'))
+        except:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse())
     
     def __commandPMCTemperatureGet(self, packet):
         try:
@@ -552,6 +563,14 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createResponse(bytearray([speed])))
     
     def __commandDrivePresentGet(self, packet):
+        try:
+            mask = self.__hw_daemon.pmc.getDrivePresenceMask()
+        except:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([mask])))
+    
+    def __commandDriveEnabledSet(self, packet):
         if (packet.parameter is None) or (len(packet.parameter) != 2):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
@@ -562,9 +581,6 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
-    
-    def __commandDriveEnabledSet(self, packet):
-        self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
     
     def __commandDriveEnabledGet(self, packet):
         try:
