@@ -342,23 +342,25 @@ class WdHwDaemon(object):
         
         cmdparser = argparse.ArgumentParser(
                 description=wdhwdaemon.WDHWD_DESCRIPTION,
-                epilog=wdhwdaemon.WDHWD_EPILOG)
+                epilog=wdhwdaemon.WDHWD_EPILOG,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
         cmdparser.add_argument(
                 '-C', '--config', action='store', nargs='?', metavar='CONFIG_FILE',
                 default=wdhwdaemon.WDHWD_CONFIG_FILE_DEFAULT,
                 help='configuration file (default: {0})'.format(wdhwdaemon.WDHWD_CONFIG_FILE_DEFAULT))
         cmdparser.add_argument(
                 '-v', '--verbose', action='count',
-                help='Sets the log verbosity level during startup. This is useful for temporarily increasing the verbosity of the error messages to find problems during startup.')
+                default=0,
+                help='sets the console logging verbosity level')
         cmdparser.add_argument(
                 '-q', '--quiet', action='store_const',
                 default=False, const=True,
-                help='Sets the log verbosity level during startup. This is useful for temporarily increasing the verbosity of the error messages to find problems during startup.')
+                help='disables console logging output')
         cmdparser.add_argument(
                 '-V', '--version', action='version',
                 version=wdhwdaemon.WDHWD_VERSION,
                 help='show version information and exit')
-        args = cmdparser.parse_args(argv)
+        args = cmdparser.parse_args(argv[1:])
         
         log_level = logging.ERROR
         if args.verbose > 3:
