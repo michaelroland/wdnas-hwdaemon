@@ -26,6 +26,7 @@ __author__  = "Michael Roland"
 
 WDHWD_VERSION = "%(prog)s v{version}".format(version=__version__)
 WDHWD_DESCRIPTION = "Western Digital Hardware Controller Daemon"
+WDHWC_DESCRIPTION = "Western Digital Hardware Controller Client"
 WDHWD_EPILOG = """
 Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
 License GPLv3+: GNU GPL version 3 or later <http://www.gnu.org/licenses/>
