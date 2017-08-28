@@ -347,14 +347,13 @@ class WdHwDaemon(object):
         cmdparser.add_argument(
                 '-C', '--config', action='store', nargs='?', metavar='CONFIG_FILE',
                 default=wdhwdaemon.WDHWD_CONFIG_FILE_DEFAULT,
-                help='configuration file (default: {0})'.format(wdhwdaemon.WDHWD_CONFIG_FILE_DEFAULT))
+                help='configuration file (default: %(default)s)')
         cmdparser.add_argument(
                 '-v', '--verbose', action='count',
                 default=0,
                 help='sets the console logging verbosity level')
         cmdparser.add_argument(
-                '-q', '--quiet', action='store_const',
-                default=False, const=True,
+                '-q', '--quiet', action='store_true',
                 help='disables console logging output')
         cmdparser.add_argument(
                 '-V', '--version', action='version',
