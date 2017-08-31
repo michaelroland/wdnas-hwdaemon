@@ -146,7 +146,7 @@ class BasicPacket(object):
         if not clazz.verifyChecksum(buffer, packet_begin, packet_end):
             raise InvalidPacketError("Checksum mismatch")
         
-        return (clazz(identifier, parameter=param, flags=flags), end_offset)
+        return (clazz(identifier, parameter=param, flags=flags), packet_end)
     
     @classmethod
     def fillChecksum(clazz, buffer, offset_begin, offset_end):
