@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import socket
+import struct
 
 from threadedsockets.packets import BasicPacket
 from threadedsockets.packetserver import PacketServerThread
@@ -336,8 +337,9 @@ class ServerThreadImpl(PacketServerThread):
         super(ServerThreadImpl, self).__init__(listener, CommandPacket)
     
     def connectionOpened(self, remote_socket, remote_address):
-        peercred = remote_socket.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
-        (pid, uid, gid) = unpack('LLL', peercred)
+        SO_PEERCRED = getattr(socket, "SO_PEERCRED", 17)
+        peercred = remote_socket.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, struct.calcsize("3i"))
+        (pid, uid, gid) = struct.unpack("3i", peercred)
         _logger.debug("%s(%d): Accepting connection from PID=%d, UID=%d, GID=%d at '%s'",
                       type(self).__name__,
                       self.thread_id,
