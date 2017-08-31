@@ -40,7 +40,7 @@ class BasicSocketClient(object):
         self._BYTES_TO_READ = 4096
         self.__send_lock = threading.RLock()
         self.__receive_lock = threading.RLock()
-        self.__socket = server_socket
+        self.__socket = client_socket
     
     def close(self):
         """Close the client-side socket connection.

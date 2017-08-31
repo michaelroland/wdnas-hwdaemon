@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+import argparse
 import logging
 
 from threadedsockets.packets import BasicPacket
@@ -30,6 +31,7 @@ from wdhwdaemon.daemon import ConfigFile
 from wdhwdaemon.server import CommandPacket, ResponsePacket
 from wdhwdaemon.server import CloseConnectionWarning
 from wdhwdaemon.server import LEDStatus
+import wdhwdaemon
 
 
 _logger = logging.getLogger(__name__)
@@ -288,7 +290,7 @@ class WdHwClient(object):
                 '-g', '--get', action='store_true',
                 help='get current status (also the default if no mode is given)')
         cmd_fan_action.add_argument(
-                '-s', '--set', action='store', type=int, dest='speed', metavar="SPEED"
+                '-s', '--set', action='store', type=int, dest='speed', metavar="SPEED",
                 help='set fan speed in percent')
         cmd_temperature = subparsers.add_parser('temperature', help='get system temperature command',
                 description="{}\ntemperature: get system temperature command".format(wdhwdaemon.WDHWC_DESCRIPTION),
@@ -304,11 +306,11 @@ class WdHwClient(object):
                 '-g', '--get', action='store_true',
                 help='get current status (also the default if no mode is given)')
         cmd_drive_action.add_argument(
-                '-e', '--enable', action='store', type=int, dest='drivebay_enable', metavar="DRIVE_BAY"
+                '-e', '--enable', action='store', type=int, dest='drivebay_enable', metavar="DRIVE_BAY",
                 default=None,
                 help='set drive bay number %(metavar)s enabled')
         cmd_drive_action.add_argument(
-                '-d', '--disable', action='store', type=int, dest='drivebay_disable', metavar="DRIVE_BAY"
+                '-d', '--disable', action='store', type=int, dest='drivebay_disable', metavar="DRIVE_BAY",
                 default=None,
                 help='set drive bay number %(metavar)s disabled')
         cmd_shutdown = subparsers.add_parser('shutdown', help='daemon shutdown command',
@@ -466,5 +468,6 @@ class WdHwClient(object):
 
 if __name__ == "__main__":
     import sys
-    sys.exit("This library is not intended to be run directly. Unit tests are not implemented.")
+    c = WdHwClient()
+    c.main(sys.argv)
 
