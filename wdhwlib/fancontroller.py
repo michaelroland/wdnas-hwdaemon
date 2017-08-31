@@ -602,6 +602,7 @@ class FanController(FanControllerCallback):
     def __run(self):
         """Runnable target of the fan controller thread."""
         last_global_level = FanController.LEVEL_UNDER
+        pending_shutdown = False
         self.__status_handler.sendMessage(
                 Message(FanControllerCallbackHandler.MSG_CTRL_STARTED))
         try:
@@ -670,14 +671,18 @@ class FanController(FanControllerCallback):
                                      last_global_level,
                                      global_level)
                         if global_level >= FanController.LEVEL_CRITICAL:
+                            pending_shutdown = True
                             self.__status_handler.sendMessage(
                                 Message(FanControllerCallbackHandler.MSG_SHUTDOWN_IMMEDIATE))
                         elif global_level >= FanController.LEVEL_SHUTDOWN:
+                            pending_shutdown = True
                             self.__status_handler.sendMessage(
                                 Message(FanControllerCallbackHandler.MSG_SHUTDOWN_DELAYED))
                         else:
-                            self.__status_handler.sendMessage(
-                                Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
+                            if pending_shutdown:
+                                pending_shutdown = False
+                                self.__status_handler.sendMessage(
+                                    Message(FanControllerCallbackHandler.MSG_SHUTDOWN_CANCEL))
                         self.__status_handler.sendMessage(
                             Message(FanControllerCallbackHandler.MSG_LEVEL_CHANGED,
                                     (global_level, last_global_level)))
