@@ -267,33 +267,35 @@ class LEDStatus(object):
     
     @classmethod
     def fromPowerLED(clazz, status, blink, pulse):
-        self.mask_const = True
-        self.mask_blink = True
-        self.mask_pulse = True
-        self.red_const = (status & wdpmcprotocol.PMC_LED_POWER_RED) != 0
-        self.red_blink = (blink & wdpmcprotocol.PMC_LED_POWER_RED) != 0
-        self.red_pulse = False
-        self.green_const = (status & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
-        self.green_blink = (blink & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
-        self.green_pulse = False
-        self.blue_const = (status & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
-        self.blue_blink = (blink & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
-        self.blue_pulse = pulse
+        obj = clazz()
+        obj.mask_const = True
+        obj.mask_blink = True
+        obj.mask_pulse = True
+        obj.red_const = (status & wdpmcprotocol.PMC_LED_POWER_RED) != 0
+        obj.red_blink = (blink & wdpmcprotocol.PMC_LED_POWER_RED) != 0
+        obj.red_pulse = False
+        obj.green_const = (status & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
+        obj.green_blink = (blink & wdpmcprotocol.PMC_LED_POWER_GREEN) != 0
+        obj.green_pulse = False
+        obj.blue_const = (status & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
+        obj.blue_blink = (blink & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
+        obj.blue_pulse = pulse
     
     @classmethod
     def fromUSBLED(clazz, status, blink):
-        self.mask_const = True
-        self.mask_blink = True
-        self.mask_pulse = True
-        self.red_const = (status & wdpmcprotocol.PMC_LED_USB_RED) != 0
-        self.red_blink = (blink & wdpmcprotocol.PMC_LED_USB_RED) != 0
-        self.red_pulse = False
-        self.green_const = False
-        self.green_blink = False
-        self.green_pulse = False
-        self.blue_const = (status & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
-        self.blue_blink = (blink & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
-        self.blue_pulse = False
+        obj = clazz()
+        obj.mask_const = True
+        obj.mask_blink = True
+        obj.mask_pulse = True
+        obj.red_const = (status & wdpmcprotocol.PMC_LED_USB_RED) != 0
+        obj.red_blink = (blink & wdpmcprotocol.PMC_LED_USB_RED) != 0
+        obj.red_pulse = False
+        obj.green_const = False
+        obj.green_blink = False
+        obj.green_pulse = False
+        obj.blue_const = (status & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
+        obj.blue_blink = (blink & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
+        obj.blue_pulse = False
 
 
 class ServerThreadImpl(PacketServerThread):
