@@ -135,7 +135,7 @@ class SocketServerThread(object):
                     _logger.debug("%s(%d): Accepting incoming connection from '%s'",
                                   type(self).__name__,
                                   self.__thread_id,
-                                  repr(remote_address))
+                                  str(remote_address))
                     with self.__socket_lock:
                         self.__socket = remote_socket
                     
@@ -156,10 +156,11 @@ class SocketServerThread(object):
                         error = e
                     
                     with self.__socket_lock:
-                        _logger.debug("%s(%d): Closing connection to '%s'",
+                        _logger.debug("%s(%d): Closing connection to '%s' (error = %s)",
                                       type(self).__name__,
                                       self.__thread_id,
-                                      repr(remote_address))
+                                      str(remote_address),
+                                      str(error))
                         self._closeSocket()
                         self.__socket = None
                     
