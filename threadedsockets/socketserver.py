@@ -165,7 +165,7 @@ class SocketServerThread(object):
                     
                     self.connectionClosed(error)
     
-    def close(self):
+    def close(self, blocking=False):
         """Close the server-side socket connection handler.
         
         This method blocks until cleanup completed.
@@ -174,7 +174,8 @@ class SocketServerThread(object):
             if self.__running:
                 self.__running = False
                 self._closeSocket()
-                self.__thread.join()
+                if blocking:
+                    self.__thread.join()
     
     def _closeSocket(self):
         """Close the current client connection socket."""
@@ -272,12 +273,15 @@ class SocketListener(object):
             self.__closeSocket()
             self.__socket = None
         self.__connection_queue.join()
+        # stop all threads in the pool
+        for i in self.__connection_thread_pool:
+            i.close(False)
         # feed the queue with dummy tasks to gracefully end all threads in the pool
         for i in self.__connection_thread_pool:
             self.__connection_queue.put(None)
         # wait for all threads in the pool to consume a dummy task (if necessary) and end
         for i in self.__connection_thread_pool:
-            i.close()
+            i.close(True)
     
     def close(self):
         """Close the server-side socket connection handler.
