@@ -147,7 +147,7 @@ class ResponsePacket(CommandPacket):
     
     PACKET_MAGIC_BYTE = 0x05A
     
-    def __init__(self, identifier, parameter=None, flags=0, error_code=ResponsePacket.ERR_NO_ERROR):
+    def __init__(self, identifier, parameter=None, flags=0, error_code=ERR_NO_ERROR):
         """Initializes a new protocol packet.
         
         Args:

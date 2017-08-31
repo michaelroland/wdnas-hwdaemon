@@ -66,7 +66,7 @@ class BasicPacket(object):
             length = len(parameter)
             if length <= 0:
                 parameter = None
-            elif length > self.MAX_PARAMETER_FIELD_SIZE
+            elif length > self.MAX_PARAMETER_FIELD_SIZE:
                 raise InvalidPacketError("Parameter length is above supported maximum length")
         self.__parameter = parameter
         self.__flags = flags
@@ -228,12 +228,12 @@ class BasicPacket(object):
         if length > self.MAX_PARAMETER_FIELD_SIZE:
             raise InvalidPacketError("Indicated packet length is above allowed maximum length")
         
-        packet_size = 1 +
-                      self.FLAGS_FIELD_SIZE +
-                      self.IDENTIFIER_FIELD_SIZE +
-                      self.LENGTH_FIELD_SIZE +
-                      length +
-                      self.CHECKSUM_FIELD_SIZE
+        packet_size = (1 +
+                       self.FLAGS_FIELD_SIZE +
+                       self.IDENTIFIER_FIELD_SIZE +
+                       self.LENGTH_FIELD_SIZE +
+                       length +
+                       self.CHECKSUM_FIELD_SIZE)
         serialized = bytearray(packet_size)
         
         offset = 0

@@ -85,7 +85,7 @@ class UnixSocketFactory(object):
         os.umask(old_umask)
         
         permissions = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
-        group_id = _resolveGroupId(group)
+        group_id = self._resolveGroupId(group)
         if group_id is not None:
             os.chown(self.__socket_path, -1, group_id)
             permissions |= stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP

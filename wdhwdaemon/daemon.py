@@ -271,9 +271,9 @@ class WdHwDaemon(object):
         """Set the LEDs to the initial boot-up state."""
         _logger.debug("%s: Setting LEDs to initial bootup state",
                       type(self).__name__)
-        pmc.setPowerLEDPulse(False)
-        pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
-        pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_BLUE)
+        self.__pmc.setPowerLEDPulse(False)
+        self.__pmc.setLEDStatus(wdpmcprotocol.PMC_LED_NONE)
+        self.__pmc.setLEDBlink(wdpmcprotocol.PMC_LED_POWER_BLUE)
     
     def setLEDNormalState(self):
         """Set the LEDs to normal state indication."""

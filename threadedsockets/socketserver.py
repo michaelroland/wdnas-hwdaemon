@@ -129,7 +129,7 @@ class SocketServerThread(object):
             _logger.debug("%s(%d): Ready to process incoming connections...",
                           type(self).__name__,
                           self.__thread_id)
-            with self.__listener.getNextConnection() as connection
+            with self.__listener.getNextConnection() as connection:
                 if connection is not None:
                     (remote_socket, remote_address) = connection
                     _logger.debug("%s(%d): Accepting incoming connection from '%s'",
@@ -198,7 +198,7 @@ class SocketServerThread(object):
         with self.__socket_lock:
             if self.__socket:
                 return True
-            else
+            else:
                 return False
     
     @property
@@ -240,7 +240,7 @@ class SocketListener(object):
         self.__connection_queue = Queue(max_clients)
         self.__connection_thread_pool = []
         for i in range(0, max_clients):
-            self.__connection_thread_pool.append(_spawnServerThread())
+            self.__connection_thread_pool.append(self._spawnServerThread())
         self.__listener_thread = threading.Thread(target=self.__runListener)
         self.__listener_thread.daemon = False
         self.__listener_thread.start()
