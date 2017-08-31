@@ -163,10 +163,10 @@ class ResponsePacket(CommandPacket):
         Raises:
             InvalidPacketError: If the parameter is too large to fit into the packet.
         """
+        self.__parameter = parameter
         if error_code != ResponsePacket.ERR_NO_ERROR:
             flags |= self.FLAG_ERROR
             self.__error_code = error_code
-            self.__parameter = parameter
             parameter = bytearray([error_code])
             if self.__parameter is not None:
                 parameter.extend(self.__parameter)

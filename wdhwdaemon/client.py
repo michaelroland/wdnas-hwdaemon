@@ -75,7 +75,7 @@ class WdHwConnector(BasicPacketClient):
             raise CloseConnectionWarning("Error '{:02X}' received".format(response.error_code))
         else:
             # success
-            _logger.error("%s: Received successful response (%s)",
+            _logger.debug("%s: Received successful response (%s)",
                           type(self).__name__,
                           repr(response.parameter))
             return response.parameter
@@ -116,27 +116,20 @@ class WdHwConnector(BasicPacketClient):
         else:
             raise ValueError("Invalid response format")
     
-    def getPMCBLK(self, packet):
-        response = self._executeCommand(CommandPacket.CMD_PMC_BLK_GET)
-        if len(response) > 0:
-            return response[0]
-        else:
-            raise ValueError("Invalid response format")
-    
     def setPowerLED(self, led_status):
-        response = self._executeCommand(CommandPacket.CMD_LED_POWER_SET,
+        response = self._executeCommand(CommandPacket.CMD_POWER_LED_SET,
                                         led_status.serialize())
     
     def getPowerLED(self):
-        response = self._executeCommand(CommandPacket.CMD_LED_POWER_GET)
+        response = self._executeCommand(CommandPacket.CMD_POWER_LED_GET)
         return LEDStatus(response)
     
     def setUSBLED(self, led_status):
-        response = self._executeCommand(CommandPacket.CMD_LED_USB_SET,
+        response = self._executeCommand(CommandPacket.CMD_USB_LED_SET,
                                         led_status.serialize())
     
     def getUSBLED(self):
-        response = self._executeCommand(CommandPacket.CMD_LED_USB_GET)
+        response = self._executeCommand(CommandPacket.CMD_USB_LED_GET)
         return LEDStatus(response)
     
     def setLCDBacklightIntensity(self, intensity):
