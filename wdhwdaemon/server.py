@@ -356,7 +356,7 @@ class ServerThreadImpl(PacketServerThread):
         cmd_code = packet.identifier
         try:
             try:
-                cmd_func = self.__COMMANDS[cmd]
+                cmd_func = self.__COMMANDS[cmd_code]
             except KeyError:
                 self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_NO_SUCH_COMMAND))
             else:
