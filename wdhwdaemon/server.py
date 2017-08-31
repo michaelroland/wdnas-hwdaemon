@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import logging
+import socket
 
 from threadedsockets.packets import BasicPacket
 from threadedsockets.packetserver import PacketServerThread
@@ -341,7 +342,7 @@ class ServerThreadImpl(PacketServerThread):
                       type(self).__name__,
                       self.thread_id,
                       pid, uid, gid,
-                      repr(remote_address))
+                      str(remote_address))
         #raise SocketSecurityException(
         #        "Connection refused for process (PID={0}, UID={1}, GID={2}) at '{3}'.".format(
         #                pid, uid, gid, repr(remote_address)))
