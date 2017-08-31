@@ -284,6 +284,7 @@ class WdHwClient(object):
                 help='get current status (also the default if no mode is given)')
         cmd_fan_action.add_argument(
                 '-s', '--set', action='store', type=int, dest='speed', metavar="SPEED",
+                default=None,
                 help='set fan speed in percent')
         cmd_temperature = subparsers.add_parser('temperature', help='get system temperature command',
                 description="{}\ntemperature: get system temperature command".format(wdhwdaemon.WDHWC_DESCRIPTION),
@@ -344,7 +345,7 @@ class WdHwClient(object):
             print "PMC version: {0}".format(pmc_version)
         
         elif args.command == "led":
-            if args.get:
+            if args.get or ((not args.steady) and (not args.blink) and (not args.pulse)):
                 if args.led_type == "power":
                     led_status = conn.getPowerLED()
                     print "Power LED\t{0:5}\t{1:5}\t{2:5}".format(
@@ -408,7 +409,7 @@ class WdHwClient(object):
                     conn.setUSBLED(led_status)
         
         elif args.command == "fan":
-            if args.get:
+            if args.get or (args.set is None):
                 fan_rpm = conn.getFanRPM()
                 fan_speed = conn.getFanSpeed()
                 print "Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed)
@@ -419,7 +420,7 @@ class WdHwClient(object):
                     conn.setFanSpeed(args.speed)
         
         elif args.command == "drive":
-            if args.get:
+            if args.get or ((args.drivebay_enable is None) and (args.drivebay_disable is None)):
                 present_mask = conn.getDrivePresentMask()
                 enabled_mask = conn.getDriveEnabledMask()
                 config_register = conn.getPMCConfiguration()
