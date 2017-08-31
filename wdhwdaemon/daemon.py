@@ -422,7 +422,6 @@ class WdHwDaemon(object):
             pmc.getDrivePresenceMask()
             pmc.getInterruptStatus()
             pmc.getDLB()
-            pmc.getBLK()
         
         _logger.debug("%s: Enabling all PMC interrupts",
                       type(self).__name__)

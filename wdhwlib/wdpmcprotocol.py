@@ -60,6 +60,7 @@ _PMC_COMMAND_VERSION = "VER"
 _PMC_COMMAND_CONFIGURATION = "CFG"
 _PMC_COMMAND_STATUS = "STA"
 _PMC_COMMAND_LED_STATUS = "LED"
+_PMC_COMMAND_LED_BLINK = "BLK"
 _PMC_COMMAND_LED_PULSE = "PLS"
 _PMC_COMMAND_LCD_BACKLIGHT = "BKL"
 _PMC_COMMAND_LCD_TEXT_N = "LN{:d}"
@@ -73,7 +74,6 @@ _PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR = "DLC"
 _PMC_COMMAND_INTERRUPT_MASK = "IMR"
 _PMC_COMMAND_INTERRUPT_STATUS = "ISR"
 _PMC_COMMAND_DLB = "DLB"
-_PMC_COMMAND_BLK = "BLK"
 
 #PMC interrrupts
 PMC_INTERRUPT_MASK_NONE = 0x00
@@ -591,7 +591,7 @@ class PMCCommands(PMCInterruptCallback):
         #   - Observed values:
         #       - Upon power-up: "01"
         #   - Interpretation: See setLEDBlink()
-        status_field = self.__processor.transceiveCommand("BLK")
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_LED_BLINK)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             status_mask = int(match.group(1), 16)
@@ -631,7 +631,7 @@ class PMCCommands(PMCInterruptCallback):
         #       - 0b00011000: USB button LED blink purple (red+blue)
         # Response: ACK | ERR
         status_field = "{0:02X}".format(blink_mask & 0x01F)
-        self.__processor.transceiveCommand("BLK", status_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_LED_BLINK, status_field)
     
     def getPowerLEDPulse(self):
         """Is the power LED pulsing?
@@ -929,12 +929,16 @@ class PMCCommands(PMCInterruptCallback):
         if poweron:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask for drive bays
+            #       - 0b00000001: Bay 0
+            #       - 0b00000010: Bay 1
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
                                                drivebay_mask_field)
         else:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask for drive bays
+            #       - 0b00000001: Bay 0
+            #       - 0b00000010: Bay 1
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
                                                drivebay_mask_field)
@@ -1012,35 +1016,6 @@ class PMCCommands(PMCInterruptCallback):
         #   - Interpretation: ???
         #         result = ((DLB >> (??? + 4)) & 1) != 0;
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DLB)
-        match = _PMC_REGEX_NUMBER_HEX.match(status_field)
-        if match is not None:
-            status_value = int(match.group(1), 16)
-            return status_value
-        else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
-    
-    def getBLK(self):
-        """TODO: What does BLK do???
-        
-        Returns:
-            int: !!!TODO!!!.
-        
-        Raises:
-            PMCCommandRejectedException: If the PMC refused the command with
-                an ERR packet.
-            PMCCommandTimeoutError: If the response timeout was reached before
-                receiving a response.
-            PMCUnexpectedResponseError: If the received response does not
-                match the sent command.
-        """
-        # Command: BLK
-        # Response: BLK=[[:xdigit:]]+
-        #   - Observed values:
-        #       - Upon power-up: "01"
-        #   - Interpretation: ???
-        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_BLK)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             status_value = int(match.group(1), 16)
