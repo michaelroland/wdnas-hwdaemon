@@ -476,7 +476,7 @@ class PMCCommands(PMCInterruptCallback):
         # Command: STA
         # Response: STA=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 1 inserted: "4c"
+        #       - Only drive 2 (left) inserted: "4c"
         #       - Drives 1 & 2 inserted: "6c"
         #   - Interpretation: ???
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_STATUS)
@@ -872,7 +872,7 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DE0
         # Response: DE0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 1 inserted: "f2"
+        #       - Only drive 2 (left) inserted: "f2"
         #       - Drives 1 & 2 inserted: "f3"
         #       - Value changes as a result of DLS/DLC
         #   - Interpretation: bitmask for drive bays
@@ -904,7 +904,7 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DP0
         # Response: DP0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 1 inserted: "8d"
+        #       - Only drive 2 (left) inserted: "8d"
         #       - Drives 1 & 2 inserted: "8c"
         #       - Value does NOT change as a result of DLS/DLC
         #   - Interpretation: bitmask for drive bays
@@ -935,7 +935,7 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         drivebay_mask_field = "{0:02X}".format(1 << bay_number)
-        if poweron:
+        if enable:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask for drive bays
             #       - 0b00000001: Bay 0
@@ -992,6 +992,8 @@ class PMCCommands(PMCInterruptCallback):
         #   - Observed values:
         #       - Upon power-up: "00"
         #       - After sending IMR=FF and receiving ALERT: "6c" (same value as STA!?)
+        #       - After pulling drive 1 (right): "10"
+        #       - After inserting drive 1 (right): "10"
         #   - Interpretation: ???
         #         result = ~(STA & 0x68) & ISR;
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
