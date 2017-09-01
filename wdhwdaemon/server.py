@@ -419,14 +419,6 @@ class ServerThreadImpl(PacketServerThread):
         else:
             self.sendPacket(packet.createResponse(bytearray([dlb])))
     
-    def __commandPMCBLKGet(self, packet):
-        try:
-            blk = self.__hw_daemon.pmc.getBLK()
-        except:
-            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
-        else:
-            self.sendPacket(packet.createResponse(bytearray([blk])))
-    
     def __commandPowerLEDSet(self, packet):
         try:
             ledStatus = LEDStatus(packet.parameter)
