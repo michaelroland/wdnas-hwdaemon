@@ -409,7 +409,7 @@ class WdHwClient(object):
                     conn.setUSBLED(led_status)
         
         elif args.command == "fan":
-            if args.get or (args.set is None):
+            if args.get or (args.speed is None):
                 fan_rpm = conn.getFanRPM()
                 fan_speed = conn.getFanSpeed()
                 print "Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed)
