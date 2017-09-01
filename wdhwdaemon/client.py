@@ -353,19 +353,19 @@ class WdHwClient(object):
                     print "----------------------------------------"
                     if led_status.mask_const:
                         print "steady:  \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led.status.red_const   else "off",
-                                "on" if led.status.green_const else "off",
-                                "on" if led.status.blue_const  else "off")
+                                "on" if led_status.red_const   else "off",
+                                "on" if led_status.green_const else "off",
+                                "on" if led_status.blue_const  else "off")
                     if led_status.mask_blink:
                         print "blink:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led.status.red_blink   else "off",
-                                "on" if led.status.green_blink else "off",
-                                "on" if led.status.blue_blink  else "off")
+                                "on" if led_status.red_blink   else "off",
+                                "on" if led_status.green_blink else "off",
+                                "on" if led_status.blue_blink  else "off")
                     if led_status.mask_pulse:
                         print "pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led.status.red_pulse   else "---",
-                                "on" if led.status.green_pulse else "---",
-                                "on" if led.status.blue_pulse  else "off")
+                                "on" if led_status.red_pulse   else "---",
+                                "on" if led_status.green_pulse else "---",
+                                "on" if led_status.blue_pulse  else "off")
                 elif args.led_type == "usb":
                     led_status = conn.getUSBLED()
                     print "USB LED  \t{0:5}\t{1:5}\t{2:5}".format(
@@ -373,19 +373,19 @@ class WdHwClient(object):
                     print "----------------------------------------"
                     if led_status.mask_const:
                         print "steady:  \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led.status.red_const   else "off",
-                                "on " if led.status.green_const else "---",
-                                "on " if led.status.blue_const  else "off")
+                                "on " if led_status.red_const   else "off",
+                                "on " if led_status.green_const else "---",
+                                "on " if led_status.blue_const  else "off")
                     if led_status.mask_blink:
                         print "blink:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led.status.red_blink   else "off",
-                                "on " if led.status.green_blink else "---",
-                                "on " if led.status.blue_blink  else "off")
+                                "on " if led_status.red_blink   else "off",
+                                "on " if led_status.green_blink else "---",
+                                "on " if led_status.blue_blink  else "off")
                     if led_status.mask_pulse:
                         print "pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led.status.red_pulse   else "---",
-                                "on " if led.status.green_pulse else "---",
-                                "on " if led.status.blue_pulse  else "---")
+                                "on " if led_status.red_pulse   else "---",
+                                "on " if led_status.green_pulse else "---",
+                                "on " if led_status.blue_pulse  else "---")
             else:
                 led_status = LEDStatus()
                 if args.steady:
