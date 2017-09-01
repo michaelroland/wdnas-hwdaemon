@@ -424,7 +424,16 @@ class PMCCommands(PMCInterruptCallback):
         #   - Observed values:
         #       - Upon power-up: "03"
         #   - Interpretation: See setConfiguration()
-        return self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION)
+        config_field = self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION)
+        match = _PMC_REGEX_NUMBER_HEX.match(config_field)
+        if match is not None:
+            config_mask = int(match.group(1), 16)
+            # TODO: Translate to useful configuration information?!
+            return config_mask
+        else:
+            raise PMCUnexpectedResponseError("Response argument '{0}' "
+                                             "does not match expected "
+                                             "format".format(config_field))
     
     def setConfiguration(self, configuration):
         """Set PMC configuration register.
