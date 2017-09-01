@@ -283,6 +283,7 @@ class LEDStatus(object):
         obj.blue_const = (status & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
         obj.blue_blink = (blink & wdpmcprotocol.PMC_LED_POWER_BLUE) != 0
         obj.blue_pulse = pulse
+        return obj
     
     @classmethod
     def fromUSBLED(clazz, status, blink):
@@ -299,6 +300,7 @@ class LEDStatus(object):
         obj.blue_const = (status & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
         obj.blue_blink = (blink & wdpmcprotocol.PMC_LED_USB_BLUE) != 0
         obj.blue_pulse = False
+        return obj
 
 
 class ServerThreadImpl(PacketServerThread):
