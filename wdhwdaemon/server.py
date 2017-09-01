@@ -561,7 +561,7 @@ class ServerThreadImpl(PacketServerThread):
         if (packet.parameter is None) or (len(packet.parameter) != 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
-            self.__hw_daemon.pmc.setConfiguration(packet.parameter[0])
+            self.__hw_daemon.pmc.setFanSpeed(packet.parameter[0])
         except:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
