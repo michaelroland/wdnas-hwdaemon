@@ -66,7 +66,6 @@ class CommandPacket(BasicPacket):
     CMD_PMC_CONFIGURATION_SET = 0x0104
     CMD_PMC_CONFIGURATION_GET = 0x0105
     CMD_PMC_DLB_GET = 0x010B
-    CMD_PMC_BLK_GET = 0x010D
     CMD_POWER_LED_SET = 0x0110
     CMD_POWER_LED_GET = 0x0111
     CMD_USB_LED_SET = 0x0112
@@ -326,7 +325,6 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_PMC_CONFIGURATION_SET:       self.__commandPMCConfigurationSet,
                 CommandPacket.CMD_PMC_CONFIGURATION_GET:       self.__commandPMCConfigurationGet,
                 CommandPacket.CMD_PMC_DLB_GET:                 self.__commandPMCDLBGet,
-                CommandPacket.CMD_PMC_BLK_GET:                 self.__commandPMCBLKGet,
                 CommandPacket.CMD_POWER_LED_SET:               self.__commandPowerLEDSet,
                 CommandPacket.CMD_POWER_LED_GET:               self.__commandPowerLEDGet,
                 CommandPacket.CMD_USB_LED_SET:                 self.__commandUSBLEDSet,
