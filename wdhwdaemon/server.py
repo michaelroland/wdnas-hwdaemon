@@ -28,6 +28,7 @@ from threadedsockets.packets import BasicPacket
 from threadedsockets.packetserver import PacketServerThread
 from threadedsockets.socketserver import SocketListener
 from threadedsockets.unixsockets import UnixSocketFactory
+import threadedsockets
 
 import wdhwdaemon.daemon
 import wdhwdaemon
@@ -349,13 +350,14 @@ class ServerThreadImpl(PacketServerThread):
                       self.thread_id,
                       pid, uid, gid,
                       str(remote_address))
-        #raise SocketSecurityException(
+        #raise threadedsockets.SocketSecurityException(
         #        "Connection refused for process (PID={0}, UID={1}, GID={2}) at '{3}'.".format(
         #                pid, uid, gid, repr(remote_address)))
     
     def connectionClosed(self, error):
-        raise error
-        pass
+        if error is not None:
+            if not isinstance(error, threadedsockets.SocketConnectionBrokenError):
+                raise
     
     def packetReceived(self, packet):
         cmd_code = packet.identifier

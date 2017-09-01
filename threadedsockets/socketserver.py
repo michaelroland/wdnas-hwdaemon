@@ -151,16 +151,17 @@ class SocketServerThread(object):
                                 self.dataReceived(data)
                             else:
                                 # no data received: connection broken?
-                                raise SocketConnectionBrokenError("socket.recv() returned {0}".format(data))
+                                raise SocketConnectionBrokenError()
+                    except SocketConnectionBrokenError:
+                        pass
                     except Exception as e:
                         error = e
                     
                     with self.__socket_lock:
-                        _logger.debug("%s(%d): Closing connection to '%s' (error = %s)",
+                        _logger.debug("%s(%d): Closing connection to '%s'",
                                       type(self).__name__,
                                       self.__thread_id,
-                                      str(remote_address),
-                                      str(error))
+                                      str(remote_address))
                         self._closeSocket()
                         self.__socket = None
                     
