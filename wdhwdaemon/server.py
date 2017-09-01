@@ -32,7 +32,7 @@ from threadedsockets.unixsockets import UnixSocketFactory
 import wdhwdaemon.daemon
 import wdhwdaemon
 
-import wdpmcprotocol
+import wdhwlib.wdpmcprotocol as wdpmcprotocol
 
 
 _logger = logging.getLogger(__name__)
