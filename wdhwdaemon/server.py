@@ -246,27 +246,28 @@ class LEDStatus(object):
         if self.mask_const:
             raw_data[self.LED_OFFSET_MASK] |= self.FLAG_LED_CONST
         if self.mask_blink:
-            response[self.LED_OFFSET_MASK] |= self.FLAG_LED_BLINK
+            raw_data[self.LED_OFFSET_MASK] |= self.FLAG_LED_BLINK
         if self.mask_pulse:
-            response[self.LED_OFFSET_MASK] |= self.FLAG_LED_PULSE
+            raw_data[self.LED_OFFSET_MASK] |= self.FLAG_LED_PULSE
         if self.red_const:
             raw_data[self.LED_OFFSET_RED] |= self.FLAG_LED_CONST
         if self.red_blink:
-            response[self.LED_OFFSET_RED] |= self.FLAG_LED_BLINK
+            raw_data[self.LED_OFFSET_RED] |= self.FLAG_LED_BLINK
         if self.red_pulse:
-            response[self.LED_OFFSET_RED] |= self.FLAG_LED_PULSE
+            raw_data[self.LED_OFFSET_RED] |= self.FLAG_LED_PULSE
         if self.green_const:
             raw_data[self.LED_OFFSET_GREEN] |= self.FLAG_LED_CONST
         if self.green_blink:
-            response[self.LED_OFFSET_GREEN] |= self.FLAG_LED_BLINK
+            raw_data[self.LED_OFFSET_GREEN] |= self.FLAG_LED_BLINK
         if self.green_pulse:
-            response[self.LED_OFFSET_GREEN] |= self.FLAG_LED_PULSE
+            raw_data[self.LED_OFFSET_GREEN] |= self.FLAG_LED_PULSE
         if self.blue_const:
             raw_data[self.LED_OFFSET_BLUE] |= self.FLAG_LED_CONST
         if self.blue_blink:
-            response[self.LED_OFFSET_BLUE] |= self.FLAG_LED_BLINK
+            raw_data[self.LED_OFFSET_BLUE] |= self.FLAG_LED_BLINK
         if self.blue_pulse:
-            response[self.LED_OFFSET_BLUE] |= self.FLAG_LED_PULSE
+            raw_data[self.LED_OFFSET_BLUE] |= self.FLAG_LED_PULSE
+        return raw_data
     
     @classmethod
     def fromPowerLED(clazz, status, blink, pulse):
