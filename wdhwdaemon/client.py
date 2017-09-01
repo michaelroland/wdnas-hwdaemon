@@ -425,6 +425,7 @@ class WdHwClient(object):
                 enabled_mask = conn.getDriveEnabledMask()
                 config_register = conn.getPMCConfiguration()
                 status_register = conn.getPMCStatus()
+                dlb = conn.getPMCDLB()
                 print "Automatic HDD power-up on presence detection: {0}".format(
                         "on" if (config_register & 0x001) != 0 else "off")
                 print "Drive bay\tDrive present\tDrive enabled"
