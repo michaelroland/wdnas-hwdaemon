@@ -229,11 +229,14 @@ class WdHwDaemon(object):
             self.shutdown()
         elif sig == signal.SIGQUIT:
             self.shutdown()
+        elif sig == signal.SIGALRM:
+            pass
     
     def shutdown(self):
         """Shutdown this daemon instance."""
         with self.__lock:
             self.__running = False
+            signal.alarm(1)
     
     @property
     def is_running(self):
@@ -461,6 +464,7 @@ class WdHwDaemon(object):
         signal.signal(signal.SIGTERM, self.__sigHandler)
         signal.signal(signal.SIGINT,  self.__sigHandler)
         signal.signal(signal.SIGQUIT, self.__sigHandler)
+        signal.signal(signal.SIGALRM, self.__sigHandler)
 
         _logger.debug("%s: Daemonizing...waiting for shutdown signal",
                       type(self).__name__)
