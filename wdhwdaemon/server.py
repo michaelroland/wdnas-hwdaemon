@@ -32,6 +32,8 @@ from threadedsockets.unixsockets import UnixSocketFactory
 import wdhwdaemon.daemon
 import wdhwdaemon
 
+import wdpmcprotocol
+
 
 _logger = logging.getLogger(__name__)
 
@@ -352,6 +354,7 @@ class ServerThreadImpl(PacketServerThread):
         #                pid, uid, gid, repr(remote_address)))
     
     def connectionClosed(self, error):
+        raise error
         pass
     
     def packetReceived(self, packet):
