@@ -432,7 +432,7 @@ class WdHwClient(object):
                 for drive_bay in range(0, num_drive_bays):
                     print "{0:9d}\t{1:13}\t{2:13}".format(
                             drive_bay,
-                            "yes" if (present_mask & (1<<drive_bay)) != 0 else "no",
+                            "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
                             "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no")
             else:
                 drive_bay = None
