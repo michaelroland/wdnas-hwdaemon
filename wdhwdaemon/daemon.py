@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import argparse
+import ConfigParser
+import json
 import logging
 import logging.handlers
 import signal
@@ -45,6 +47,7 @@ class PMCCommandsImpl(PMCCommands):
     
     def interruptReceived(self):
         isr = self.getInterruptStatus()
+        sta = self.getStatus()
         _logger.info("%s: Received interrupt %X",
                      type(self).__name__,
                      isr)
@@ -117,22 +120,26 @@ class FanControllerImpl(FanController):
                       old_level, new_level)
 
 
+class ConfigFileError(Exception):
+    pass
+
+
 class ConfigFile(object):
     """Hardware controller daemon configuration holder.
     
     Attributes:
-        pmc_port: Name of the serial port that the PMC is attached to.
-        pmc_test: Enable PMC protocol testing mode?
-        disk_drives: List of disk drives in the drive bays (in the order of PMC drive
-            bay flags).
-        memory_dimms: Number of memory DIMMs to monitor.
-        socket_path: Path of the UNIX domain socket for controlling the hardware
+        pmc_port (str): Name of the serial port that the PMC is attached to.
+        pmc_test (bool): Enable PMC protocol testing mode?
+        disk_drives (List(str)): List of disk drives in the drive bays (in the order of
+            PMC drive bay flags).
+        memory_dimms (int): Number of memory DIMMs to monitor.
+        socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
-        socket_group: Group that is granted access to the UNIX domain socket.
-        socket_max_clients: Maximum number of clients that can concurrently connect to
-            the UNIX domain socket.
-        log_file: The log file name; may be ``None`` to disable file-based logging.
-        log_level: The log verbosity level for logging to the log file.
+        socket_group (str): Group that is granted access to the UNIX domain socket.
+        socket_max_clients (int): Maximum number of clients that can concurrently connect
+            to the UNIX domain socket.
+        log_file (str): The log file name; may be ``None`` to disable file-based logging.
+        log_level (int): The log verbosity level for logging to the log file.
     """
     
     def __init__(self, config_file):
@@ -143,60 +150,100 @@ class ConfigFile(object):
                 holder.
         """
         super(ConfigFile, self).__init__()
-        self.__pmc_port = wdpmcprotocol.PMC_UART_PORT_DEFAULT
-        self.__pmc_test = True
-        self.__disk_drives = temperature.HDSMART_DISKS
-        self.__memory_dimms = 2
-        self.__socket_path = wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT
-        self.__socket_group = None
-        self.__socket_max_clients = 10
-        self.__log_file = None
-        self.__log_level = logging.WARNING
+        self.__file = config_file
+        self.__cfg = ConfigParser.RawConfigParser()
+        try:
+            self.__file = self.__cfg.read(config_file)
+            if len(self.__file) <= 0:
+                raise ConfigFileError("Configuration file '{0}' not found".format(config_file))
+        except Exception as e:
+            raise ConfigFileError("{0} while parsing configuration file '{2}': {1}".format(
+                    type(e).__name__, e, config_file))
+        SECTION = "wdhwd"
+        self._declareOption("pmc_port",           SECTION, "pmc_port",
+                            default_value=wdpmcprotocol.PMC_UART_PORT_DEFAULT)
+        self._declareOption("pmc_test",           SECTION, "pmc_test_mode",
+                            default_value=False,
+                            parser_func=self._parseBoolean)
+        self._declareOption("disk_drives",        SECTION, "monitor_disk_drives",
+                            default_value=temperature.HDSMART_DISKS,
+                            parser_func=self._parseArray)
+        self._declareOption("memory_dimms",       SECTION, "monitor_memory_dimms_count",
+                            default_value=2,
+                            parser_func=self._parseInteger)
+        self._declareOption("socket_path",        SECTION, "socket_path",
+                            default_value=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
+        self._declareOption("socket_group",       SECTION, "socket_group_name",
+                            default_value=None)
+        self._declareOption("socket_max_clients", SECTION, "socket_max_clients",
+                            default_value=10,
+                            parser_func=self._parseInteger)
+        self._declareOption("log_file",           SECTION, "log_file",
+                            default_value=None)
+        self._declareOption("log_level",          SECTION, "log_level",
+                            default_value=logging.WARNING,
+                            parser_func=self._parseLogLevel)
     
-    @property
-    def pmc_port(self):
-        """str: Name of the serial port that the PMC is attached to."""
-        return self.__pmc_port
+    def _declareOption(self, attribute_name, option_section, option_name, default_value=None, parser_func=str, parser_args=None):
+        try:
+            option_value = default_value
+            if self.__cfg.has_option(option_section, option_name):
+                option_raw_value = self.__cfg.get(option_section, option_name)
+                option_value = parser_func(option_raw_value, **parser_args)
+            setattr(self, attribute_name, option_value)
+        except ValueError as e:
+            raise ConfigFileError("Invalid value for option {2}"
+                                  " (in section {1} of {0}): {3}".format(self.__file,
+                                                                         option_section,
+                                                                         option_name,
+                                                                         e))
     
-    @property
-    def pmc_test(self):
-        """bool: Enable PMC protocol testing mode?"""
-        return self.__pmc_test
+    @staticmethod
+    def _parseBoolean(value):
+        value = value.lower()
+        if value in ["1", "true", "yes", "on"]:
+            return True
+        elif value in ["0", "false", "no", "off"]:
+            return False
+        else:
+            raise ValueError("'{0}' is not a valid boolean value".format(value))
     
-    @property
-    def disk_drives(self):
-        """List(str): List of disk drives in the drive bays (in the order of PMC drive bay flags)."""
-        return self.__disk_drives
+    @staticmethod
+    def _parseInteger(value):
+        return int(value)
     
-    @property
-    def memory_dimms(self):
-        """int: Number of memory DIMMs to monitor."""
-        return self.__memory_dimms
+    @staticmethod
+    def _parseLogLevel(value):
+        value = value.lower()
+        if value in ["critical", "crit", "c"]:
+            return logging.CRITICAL
+        elif value in ["error", "err", "e"]:
+            return logging.ERROR
+        elif value in ["warning", "warn", "w"]:
+            return logging.WARNING
+        elif value in ["info", "inf", "i"]:
+            return logging.INFO
+        elif value in ["debug", "dbg", "deb", "d"]:
+            return logging.DEBUG
+        elif value in ["all", "any", "a"]:
+            return logging.NOTSET
+        elif value in ["none", "no", "n", "off"]:
+            return 2 * logging.CRITICAL
+        else:
+            raise ValueError("'{0}' is not a valid log level".format(value))
     
-    @property
-    def socket_path(self):
-        """str: Path of the UNIX domain socket for controlling the hardware controller daemon."""
-        return self.__socket_path
-    
-    @property
-    def socket_group(self):
-        """str: Group that is granted access to the UNIX domain socket."""
-        return self.__socket_group
-    
-    @property
-    def socket_max_clients(self):
-        """int: Maximum number of clients that can concurrently connect to the UNIX domain socket."""
-        return self.__socket_max_clients
-    
-    @property
-    def log_file(self):
-        """str: The log file name; may be ``None`` to disable file-based logging."""
-        return self.__log_file
-    
-    @property
-    def log_level(self):
-        """int: The log verbosity level for logging to the log file."""
-        return self.__log_level
+    @staticmethod
+    def _parseArray(value, parser_func=str, parser_args=None):
+        try:
+            parsed_value = json.loads(value)
+            if type(parsed_value) != list:
+                raise ValueError()
+            result = list()
+            for element in parsed_value:
+                result.extend(parser_func(element, **parser_args))
+            return result
+        except ValueError as e:
+            raise ValueError("'{0}' is not a valid array value: {1}".format(value, e))
 
 
 class WdHwDaemon(object):
