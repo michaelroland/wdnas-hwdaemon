@@ -42,6 +42,4 @@ WDHWD_SOCKET_FILE_DEFAULT = "/var/run/wdhwd/hws.sock"
 
 if __name__ == "__main__":
     import sys
-    import wdhwdaemon.daemon
-    d = wdhwdaemon.daemon.WdHwDaemon()
-    d.main(sys.argv)
+    sys.exit("This library is not intended to be run directly. Unit tests are not implemented.")
