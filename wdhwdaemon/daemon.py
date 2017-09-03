@@ -45,6 +45,15 @@ class PMCCommandsImpl(PMCCommands):
     """Western Digital PMC Manager implementation.
     """
     
+    def __init__(self, hw_daemon):
+        """Initializes a new PMC manager.
+        
+        Args:
+            hw_daemon (WdHwDaemon): The parent hardware controller daemon.
+        """
+        self.__hw_daemon = hw_daemon
+        super(PMCCommandsImpl, self).__init__()
+    
     def interruptReceived(self):
         isr = self.getInterruptStatus()
         sta = self.getStatus()
@@ -266,6 +275,7 @@ class WdHwDaemon(object):
         self.__pmc_version = ""
         self.__temperature_reader = None
         self.__fan_controller = None
+        self.__server = None
     
     def __sigHandler(self, sig, frame):
         """Signal handler."""
@@ -386,7 +396,7 @@ class WdHwDaemon(object):
         result = subprocess.call(["shutdown", "-c"])
     
     def main(self, argv):
-        """Main loop of the hardware controller daemon."""
+        """Main entrypoint of the hardware controller daemon."""
         with self.__lock:
             self.__running = True
         
@@ -443,95 +453,102 @@ class WdHwDaemon(object):
             filelog.setFormatter(formatter)
             logger.addHandler(filelog)
         
-        _logger.debug("%s: Starting PMC manager for PMC at '%s'",
-                      type(self).__name__,
-                      cfg.pmc_port)
-        pmc = PMCCommandsImpl()
-        pmc.connect(cfg.pmc_port)
-        self.__pmc = pmc
-        
-        pmc_version = pmc.getVersion()
-        self.__pmc_version = pmc_version
-        _logger.info("%s: Detected PMC version %s",
-                     type(self).__name__,
-                     pmc_version)
-        
-        if cfg.pmc_test:
-            _logger.debug("%s: PMC test mode: executing all getter commands",
+        try:
+            _logger.debug("%s: Starting PMC manager for PMC at '%s'",
+                          type(self).__name__,
+                          cfg.pmc_port)
+            pmc = PMCCommandsImpl(self)
+            pmc.connect(cfg.pmc_port)
+            self.__pmc = pmc
+            
+            pmc_version = pmc.getVersion()
+            self.__pmc_version = pmc_version
+            _logger.info("%s: Detected PMC version %s",
+                         type(self).__name__,
+                         pmc_version)
+            
+            if cfg.pmc_test:
+                _logger.debug("%s: PMC test mode: executing all getter commands",
+                              type(self).__name__)
+                pmc.getConfiguration()
+                pmc.getStatus()
+                pmc.getTemperature()
+                pmc.getLEDStatus()
+                pmc.getLEDBlink()
+                pmc.getPowerLEDPulse()
+                pmc.getLCDBacklightIntensity()
+                pmc.getFanRPM()
+                pmc.getFanSpeed()
+                pmc.getDriveEnabledMask()
+                pmc.getDrivePresenceMask()
+                pmc.getInterruptStatus()
+                pmc.getDLB()
+            
+            _logger.debug("%s: Enabling all PMC interrupts",
                           type(self).__name__)
-            pmc.getConfiguration()
-            pmc.getStatus()
-            pmc.getTemperature()
-            pmc.getLEDStatus()
-            pmc.getLEDBlink()
-            pmc.getPowerLEDPulse()
-            pmc.getLCDBacklightIntensity()
-            pmc.getFanRPM()
-            pmc.getFanSpeed()
-            pmc.getDriveEnabledMask()
-            pmc.getDrivePresenceMask()
-            pmc.getInterruptStatus()
-            pmc.getDLB()
-        
-        _logger.debug("%s: Enabling all PMC interrupts",
-                      type(self).__name__)
-        pmc.setInterruptMask(wdpmcprotocol.PMC_INTERRUPT_MASK_ALL)
-        
-        self.setLEDBootState()
-        
-        _logger.debug("%s: Starting temperature reader",
-                      type(self).__name__)
-        temperature_reader = TemperatureReader()
-        temperature_reader.connect()
-        self.__temperature_reader = temperature_reader
-        
-        num_cpus = temperature_reader.getNumCPUCores()
-        _logger.info("%s: Discovered %d CPU cores",
-                     type(self).__name__,
-                     num_cpus)
-        
-        _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s, DIMMs = %d)",
-                      type(self).__name__,
-                      pmc_version, num_cpus, cfg.disk_drives, cfg.memory_dimms)
-        fan_controller = FanControllerImpl(self,
-                                           pmc,
-                                           temperature_reader,
-                                           cfg.disk_drives,
-                                           cfg.memory_dimms)
-        fan_controller.start()
-        self.__fan_controller = fan_controller
-        
-        _logger.debug("%s: Starting controller socket server at %s (group = %s, max-clients = %d)",
-                      type(self).__name__,
-                      cfg.socket_path, repr(cfg.socket_group), cfg.socket_max_clients)
-        server = wdhwdaemon.server.WdHwServer(self, cfg.socket_path, cfg.socket_group, cfg.socket_max_clients)
-        
-        _logger.debug("%s: Setting up signal handlers",
-                      type(self).__name__)
-        signal.signal(signal.SIGTERM, self.__sigHandler)
-        signal.signal(signal.SIGINT,  self.__sigHandler)
-        signal.signal(signal.SIGQUIT, self.__sigHandler)
-        signal.signal(signal.SIGALRM, self.__sigHandler)
+            pmc.setInterruptMask(wdpmcprotocol.PMC_INTERRUPT_MASK_ALL)
+            
+            self.setLEDBootState()
+            
+            _logger.debug("%s: Starting temperature reader",
+                          type(self).__name__)
+            temperature_reader = TemperatureReader()
+            temperature_reader.connect()
+            self.__temperature_reader = temperature_reader
+            
+            num_cpus = temperature_reader.getNumCPUCores()
+            _logger.info("%s: Discovered %d CPU cores",
+                         type(self).__name__,
+                         num_cpus)
+            
+            _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s, DIMMs = %d)",
+                          type(self).__name__,
+                          pmc_version, num_cpus, cfg.disk_drives, cfg.memory_dimms)
+            fan_controller = FanControllerImpl(self,
+                                               pmc,
+                                               temperature_reader,
+                                               cfg.disk_drives,
+                                               cfg.memory_dimms)
+            fan_controller.start()
+            self.__fan_controller = fan_controller
+            
+            _logger.debug("%s: Starting controller socket server at %s (group = %s, max-clients = %d)",
+                          type(self).__name__,
+                          cfg.socket_path, repr(cfg.socket_group), cfg.socket_max_clients)
+            server = wdhwdaemon.server.WdHwServer(self, cfg.socket_path, cfg.socket_group, cfg.socket_max_clients)
+            self.__server = server
+            
+            _logger.debug("%s: Setting up signal handlers",
+                          type(self).__name__)
+            signal.signal(signal.SIGTERM, self.__sigHandler)
+            signal.signal(signal.SIGINT,  self.__sigHandler)
+            signal.signal(signal.SIGQUIT, self.__sigHandler)
+            signal.signal(signal.SIGALRM, self.__sigHandler)
 
-        _logger.debug("%s: Daemonizing...waiting for shutdown signal",
-                      type(self).__name__)
-        while self.is_running:
-            signal.pause()
-        
-        _logger.debug("%s: Stopping controller socket server",
-                      type(self).__name__)
-        server.close()
-        _logger.debug("%s: Stopping fan controller",
-                      type(self).__name__)
-        fan_controller.join()
-        _logger.debug("%s: Stopping temperature reader",
-                      type(self).__name__)
-        temperature_reader.close()
-        _logger.debug("%s: Stopping PMC manager",
-                      type(self).__name__)
-        pmc.close()
-        _logger.debug("%s: Shutdown completed",
-                      type(self).__name__)
+            _logger.debug("%s: Daemonizing...waiting for shutdown signal",
+                          type(self).__name__)
+            while self.is_running:
+                signal.pause()
+            
+        finally:
+            if self.__server is not None:
+                _logger.debug("%s: Stopping controller socket server",
+                              type(self).__name__)
+                self.__server.close()
+            if self.__fan_controller is not None:
+                _logger.debug("%s: Stopping fan controller",
+                              type(self).__name__)
+                self.__fan_controller.join()
+            if self.__temperature_reader is not None:
+                _logger.debug("%s: Stopping temperature reader",
+                              type(self).__name__)
+                self.__temperature_reader.close()
+            if self.__pmc is not None:
+                _logger.debug("%s: Stopping PMC manager",
+                              type(self).__name__)
+                self.__pmc.close()
+            _logger.debug("%s: Shutdown completed",
+                          type(self).__name__)
 
 
 if __name__ == "__main__":
