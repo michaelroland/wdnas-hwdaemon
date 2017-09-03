@@ -375,7 +375,7 @@ class WdHwDaemon(object):
         """Initiate an immediate system shutdown."""
         _logger.info("%s: Initiating immediate system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["shutdown", "-P", "now"])
+        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-P", "now"])
     
     def initiateDelayedSystemShutdown(self, grace_period=60):
         """Initiate a delayed system shutdown.
@@ -387,13 +387,13 @@ class WdHwDaemon(object):
         _logger.info("%s: Scheduled system shutdown in %d minutes",
                      type(self).__name__,
                      grace_period)
-        result = subprocess.call(["shutdown", "-P", "+{0}".format(grace_period)])
+        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
     
     def cancelPendingSystemShutdown(self):
         """Cancel any pending system shutdown."""
         _logger.info("%s: Cancelling pending system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["shutdown", "-c"])
+        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-c"])
     
     def main(self, argv):
         """Main entrypoint of the hardware controller daemon."""

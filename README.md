@@ -29,6 +29,32 @@ Moreover, *hddtemp* is necessary in order to monitor the hard disk temperature:
     sudo apt install hddtemp
 
 
+### Setting up the environment
+
+While the hardware controller daemon could be run as root, it is highly recommended
+to run the daemon as a non-priviledged user. This non-priviledged user needs
+permissions to access various hardware such as serial ports and harddisk SMART
+information. Therefore, a new system user needs to be created:
+
+    sudo useradd -r -U -M -b /var/run -s /usr/sbin/nologin wdhwd
+
+The user needs permissions to access the serial port (group "dialout") and the
+I2C/SMBUS (group "i2c"):
+
+    sudo usermod -a -G dialout,i2c wdhwd
+
+Moreover, the user needs sudo-er permissions to execute the <samp>hddtemp</samp>
+and <samp>shutdown</samp> binaries:
+
+    echo '# sudoers file for Western Digital Hardware Controller Daemon
+    wdhwd ALL=(ALL) NOPASSWD: NOEXEC: NOMAIL: NOSETENV: /usr/sbin/hddtemp /dev/sd?, \
+            /sbin/shutdown -P now, /sbin/shutdown -P +60, /sbin/shutdown -c
+    ' >wdhwd.sudoers
+    sudo chown root.root wdhwd.sudoers
+    sudo chmod 0440 wdhwd.sudoers
+    sudo mv wdhwd.sudoers /etc/sudoers.d/wdhwd
+
+
 ## GET LATEST VERSION
 
 Find documentation and grab the latest version on GitHub
