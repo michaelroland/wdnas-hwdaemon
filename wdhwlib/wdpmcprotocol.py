@@ -76,20 +76,25 @@ _PMC_COMMAND_INTERRUPT_STATUS = "ISR"
 _PMC_COMMAND_DLB = "DLB"
 
 #PMC interrrupts
-PMC_INTERRUPT_MASK_NONE = 0x00
-PMC_INTERRUPT_MASK_ALL  = 0xFF
+PMC_INTERRUPT_MASK_NONE              = 0b00000000
+PMC_INTERRUPT_MASK_ALL               = 0b11111111
+PMC_INTERRUPT_POWER_2_STATE_CHANGED  = 0b00000010
+PMC_INTERRUPT_POWER_1_STATE_CHANGED  = 0b00000100
+PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED = 0b00010000
+
+#PMC power-up status
+PMC_STATUS_POWER_2_UP = 0b00000010
+PMC_STATUS_POWER_1_UP = 0b00000100
 
 #PMC LED status
 PMC_LED_NONE                     = 0b00000000
 PMC_LED_POWER_BLUE               = 0b00000001
 PMC_LED_POWER_RED                = 0b00000010
 PMC_LED_POWER_GREEN              = 0b00000100
-PMC_LED_POWER_PURPLE_NOBLINK     = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED
+PMC_LED_POWER_PURPLE             = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED
 PMC_LED_POWER_TURQUOIS           = PMC_LED_POWER_BLUE | PMC_LED_POWER_GREEN
 PMC_LED_POWER_YELLOW             = PMC_LED_POWER_RED  | PMC_LED_POWER_GREEN
-PMC_LED_POWER_WHITE_NOBLINK      = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED | PMC_LED_POWER_GREEN
-PMC_LED_POWER_BLUE_RED_TOGGLE    = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED
-PMC_LED_POWER_BLUE_YELLOW_TOGGLE = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED | PMC_LED_POWER_GREEN
+PMC_LED_POWER_WHITE              = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED | PMC_LED_POWER_GREEN
 PMC_LED_POWER_MASK               = PMC_LED_POWER_BLUE | PMC_LED_POWER_RED | PMC_LED_POWER_GREEN
 PMC_LED_USB_RED                  = 0b00001000
 PMC_LED_USB_BLUE                 = 0b00010000
@@ -409,7 +414,7 @@ class PMCCommands(PMCInterruptCallback):
         """Get PMC configuration register.
         
         Returns:
-            int: !!!TODO!!!
+            int: Configuration register value.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -428,7 +433,6 @@ class PMCCommands(PMCInterruptCallback):
         match = _PMC_REGEX_NUMBER_HEX.match(config_field)
         if match is not None:
             config_mask = int(match.group(1), 16)
-            # TODO: Translate to useful configuration information?!
             return config_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -439,7 +443,7 @@ class PMCCommands(PMCInterruptCallback):
         """Set PMC configuration register.
         
         Args:
-            configuration (int): !!!TODO!!!
+            configuration (int): New configuration register value.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -460,10 +464,10 @@ class PMCCommands(PMCInterruptCallback):
         self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION, status_field)
     
     def getStatus(self):
-        """Get the PMC status information.
+        """Get the PMC power-up status information.
         
         Returns:
-            !!!TODO!!!.
+            int: Power-up status register value.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -476,14 +480,25 @@ class PMCCommands(PMCInterruptCallback):
         # Command: STA
         # Response: STA=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 2 (left) inserted: "4c"
-        #       - Drives 1 & 2 inserted: "6c"
-        #   - Interpretation: ???
+        #       - Powered up with power adapter at socket 1 plugged in: "6c"
+        #       - Powered up with power adapter at socket 2 plugged in: "6a"
+        #       - Powered up with power adapters at sockets 1 and 2 plugged in: "6e"
+        #       - Powered up with only drive in bay 0 (right) inserted: "6c"
+        #       - Powered up with only drive in bay 1 (left) inserted: "6c"
+        #       - Powered up with no drives inserted (not properly verified!): "4c"
+        #       - Powered up with both drives inserted: "6c"
+        #   - Interpretation: bitmask for power-up (?) status
+        #       - Bit 0: ??? (cleared upon power-up)
+        #       - Bit 1: Power adapter at socket 2 plugged in
+        #       - Bit 2: Power adapter at socket 1 plugged in
+        #       - Bit 3: ??? (set upon power-up)
+        #       - Bit 4: ??? (cleared upon power-up)
+        #       - Bit 5-6: ??? (set upon power-up)
+        #       - Bit 7: ??? (cleared upon power-up)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             status_mask = int(match.group(1), 16)
-            # TODO: Translate to useful status information?!
             return status_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -506,7 +521,7 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: TMP
         # Response: TMP=[[:xdigit:]]+
-        #   - Observed values: "1f", "28", "2f", "2e"
+        #   - Observed values: "1f", "28", "2f", "2e", etc.
         #   - Interpretation: Hexadecimal value representing the temperature in degrees Celsius
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_TEMPERATURE)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
@@ -519,7 +534,7 @@ class PMCCommands(PMCInterruptCallback):
                                              "format".format(status_field))
     
     def getLEDStatus(self):
-        """Get the LED status.
+        """Get the LED steady status.
         
         Returns:
             int: A combination of ``PMC_LED_*`` flags indicating the LED and color
@@ -549,7 +564,7 @@ class PMCCommands(PMCInterruptCallback):
                                              "format".format(status_field))
     
     def setLEDStatus(self, on_mask):
-        """Set the LED status.
+        """Set the LED steady status.
         
         Args:
             on_mask (int): A combination of ``PMC_LED_*`` flags indicating the LED
@@ -630,14 +645,14 @@ class PMCCommands(PMCInterruptCallback):
         #       - 0b00000000: no blink
         #       - 0b00000001: power LED blink blue
         #       - 0b00000010: power LED blink red
-        #       - 0b00000011: power LED blink blue and red (toggles between the two)
+        #       - 0b00000011: power LED blink purple or toggle blue/red (depends on steady LED state)
         #       - 0b00000100: power LED blink green
-        #       - 0b00000101: power LED blink blue and green (toggles between turquois (blue+green) and off)
-        #       - 0b00000110: power LED blink red and green (toggles between yellowish (red+green) and off)
-        #       - 0b00000111: power LED blink blue, red and green (toggles between blue and yellowish (red+green))
+        #       - 0b00000101: power LED blink turquois or toggle blue/green (depends on steady LED state)
+        #       - 0b00000110: power LED blink yellowish or toggle red/green (depends on steady LED state)
+        #       - 0b00000111: power LED blink white or toggle two combinations of blue/red/green (depends on steady LED state)
         #       - 0b00001000: USB button LED blink red
         #       - 0b00010000: USB button LED blink blue
-        #       - 0b00011000: USB button LED blink purple (red+blue)
+        #       - 0b00011000: USB button LED blink purple or toggle blue/red (depends on steady LED state)
         # Response: ACK | ERR
         status_field = "{0:02X}".format(blink_mask & 0x01F)
         self.__processor.transceiveCommand(_PMC_COMMAND_LED_BLINK, status_field)
@@ -713,7 +728,7 @@ class PMCCommands(PMCInterruptCallback):
         # Response: BKL=[[:xdigit:]]+
         #   - Observed values:
         #       - Upon power-up: "64" -> 100%
-        #   - Interpretation: Hexadecimal representation of the LCD backlight intensity in percent
+        #   - Interpretation: Hexadecimal representation (1 byte) of the LCD backlight intensity in percent
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_LCD_BACKLIGHT)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -765,7 +780,10 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: LN%d=%s
         # Response: ACK | ERR
-        # TODO: Check line for valid range!
+        if line < 0:
+            line = 0
+        if line > 9:
+            line = 0
         command_field = _PMC_COMMAND_LCD_TEXT_N.format(line)
         # TODO: Check value for valid characters!
         text_field = value
@@ -790,7 +808,7 @@ class PMCCommands(PMCInterruptCallback):
         #   - Observed values:
         #       - "10E0" at FAN=50 -> 4320 RPM with fan at 80%
         #       - "0726" at FAN=1f -> 1830 RPM with fan at 31%
-        #   - Interpretation: Hexadecimal value representing the fan speed in RPM
+        #   - Interpretation: Hexadecimal value (2 bytes) representing the fan speed in RPM
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_FAN_RPM)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -819,7 +837,7 @@ class PMCCommands(PMCInterruptCallback):
         # Response: FAN=[[:xdigit:]]+
         #   - Observed values:
         #       - Upon power-up: "50" -> fan at 80%
-        #   - Interpretation: Hexadecimal value representing the fan speed in percent
+        #   - Interpretation: Hexadecimal value (1 byte) representing the fan speed in percent
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -859,7 +877,7 @@ class PMCCommands(PMCInterruptCallback):
         """Get drive bay power-up status information.
         
         Returns:
-            int: !!!TODO!!!.
+            int: Drive bay power-up status mask.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -872,15 +890,19 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DE0
         # Response: DE0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 2 (left) inserted: "f2"
-        #       - Drives 1 & 2 inserted: "f3"
+        #       - Only drive in bay 0 (right) powered-up: "f1"
+        #       - Only drive in bay 1 (left) powered-up: "f2"
+        #       - Drives in both bays powered-up: "f3"
         #       - Value changes as a result of DLS/DLC
-        #   - Interpretation: bitmask for drive bays
+        #   - Interpretation: bitmask (1 byte) for drive bays
+        #       - Bit 0: set when drive in bay 0 (right) is powered-up, cleared when drive is absent or powered-down
+        #       - Bit 1: set when drive in bay 1 (left) is powered-up, cleared when drive is absent or powered-down
+        #       - Bit 2-3: ??? (always observed as cleared; may indicate presence for the two non-existent drive bays, cf. DL4100)
+        #       - Bit 4-7: ??? (always observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_ENABLED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             drivebay_mask = int(match.group(1), 16)
-            # TODO: Convert into set.
             return drivebay_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -891,7 +913,7 @@ class PMCCommands(PMCInterruptCallback):
         """Get drive presence status information.
         
         Returns:
-            int: !!!TODO!!!.
+            int: Drive presence status mask.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -904,15 +926,20 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DP0
         # Response: DP0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive 2 (left) inserted: "8d"
-        #       - Drives 1 & 2 inserted: "8c"
+        #       - Only drive in bay 0 (right) inserted: "8d"
+        #       - Only drive in bay 1 (left) inserted: "8e"
+        #       - Drives in both bays inserted: "8c"
         #       - Value does NOT change as a result of DLS/DLC
-        #   - Interpretation: bitmask for drive bays
+        #   - Interpretation: bitmask (1 byte) for drive bays
+        #       - Bit 0: cleared when drive in bay 0 (right) is present, set when drive is absent
+        #       - Bit 1: cleared when drive in bay 1 (left) is present, set when drive is absent
+        #       - Bit 2-3: ??? (always observed as set; may indicate presence for the two non-existent drive bays, cf. DL4100)
+        #       - Bit 4-6: ??? (always observed as cleared)
+        #       - Bit 7: ??? (always observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             drivebay_mask = int(match.group(1), 16)
-            # TODO: Convert into set.
             return drivebay_mask
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
@@ -938,16 +965,16 @@ class PMCCommands(PMCInterruptCallback):
         if enable:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask for drive bays
-            #       - 0b00000001: Bay 0
-            #       - 0b00000010: Bay 1
+            #       - 0b00000001: Bay 0 (right)
+            #       - 0b00000010: Bay 1 (left)
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
                                                drivebay_mask_field)
         else:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask for drive bays
-            #       - 0b00000001: Bay 0
-            #       - 0b00000010: Bay 1
+            #       - 0b00000001: Bay 0 (right)
+            #       - 0b00000010: Bay 1 (left)
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
                                                drivebay_mask_field)
@@ -956,7 +983,7 @@ class PMCCommands(PMCInterruptCallback):
         """Set the interrupt mask in order to enable/request interrupts.
         
         Args:
-            mask (int): !!!TODO!!!
+            mask (int): Interrupt mask value.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -967,7 +994,7 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: IMR=FF
-        #   - Parameter (1 byte): ???
+        #   - Parameter (1 byte): See getInterruptStatus()
         # Response: ACK | ERR
         mask_field = "{0:02X}".format(mask)
         self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_MASK,
@@ -977,7 +1004,7 @@ class PMCCommands(PMCInterruptCallback):
         """Get the pending interrupt status.
         
         Returns:
-            int: !!!TODO!!!.
+            int: Interrupt status register value.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -991,11 +1018,23 @@ class PMCCommands(PMCInterruptCallback):
         # Response: ISR=[[:xdigit:]]+
         #   - Observed values:
         #       - Upon power-up: "00"
-        #       - After sending IMR=FF and receiving ALERT: "6c" (same value as STA!?)
-        #       - After pulling drive 1 (right): "10"
-        #       - After inserting drive 1 (right): "10"
-        #   - Interpretation: ???
-        #         result = ~(STA & 0x68) & ISR;
+        #       - With IMR=FF and after receiving ALERT:
+        #           - After unplugging and re-plugging power adapter (at socket 1) while powered off: "6c" (same value as STA)
+        #           - After unplugging and re-plugging power adapter (at socket 2) while powered off: "6a" (same value as STA)
+        #           - After unplugging and re-plugging power adapter (at both sockets) while powered off: "6e" (same value as STA)
+        #           - After unplugging or (re-)plugging power adapter (at socket 1) while powered on: "04"
+        #           - After unplugging or (re-)plugging power adapter (at socket 2) while powered on: "02"
+        #           - After inserting or removing any drive: "10"
+        #   - Original firmware operation:
+        #       - result = ~(STA & 0x68) & ISR;
+        #   - Interpretation: bitmask (1 byte) for pending interrupts
+        #       - Bit 0: ??? (never observed as set)
+        #       - Bit 1: Power adapter state changed on socket 2
+        #       - Bit 2: Power adapter state changed on socket 1
+        #       - Bit 3: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
+        #       - Bit 4: Drive presence changed
+        #       - Bit 5-6: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
+        #       - Bit 7: ??? (never observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -1010,7 +1049,7 @@ class PMCCommands(PMCInterruptCallback):
         """TODO: What does DLB do???
         
         Returns:
-            int: !!!TODO!!!.
+            int: ???.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -1024,8 +1063,9 @@ class PMCCommands(PMCInterruptCallback):
         # Response: DLB=[[:xdigit:]]+
         #   - Observed values:
         #       - Upon power-up: "00"
-        #   - Interpretation: ???
+        #   - Original firmware operation:
         #         result = ((DLB >> (??? + 4)) & 1) != 0;
+        #   - Interpretation: ???
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DLB)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
