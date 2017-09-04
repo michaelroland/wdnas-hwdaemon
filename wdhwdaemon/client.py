@@ -429,8 +429,7 @@ class WdHwClient(object):
                 print "Automatic HDD power-up on presence detection: {0}".format(
                         "on" if (config_register & 0x001) != 0 else "off")
                 print "Drive bay\tDrive present\tDrive enabled"
-                num_drive_bays = 2
-                for drive_bay in range(0, num_drive_bays):
+                for drive_bay in range(0, len(cfg.disk_drives)):
                     print "{0:9d}\t{1:13}\t{2:13}".format(
                             drive_bay,
                             "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
