@@ -56,10 +56,10 @@ class PMCCommandsImpl(PMCCommands):
     
     def interruptReceived(self):
         isr = self.getInterruptStatus()
-        sta = self.getStatus()
         _logger.info("%s: Received interrupt %X",
                      type(self).__name__,
                      isr)
+        self.__hw_daemon.receivedPMCInterrupt(isr)
     
     def sequenceError(self, code, value):
         _logger.error("%s: Out-of-sequence PMC message received (code = '%s', value = '%s')",
@@ -149,6 +149,16 @@ class ConfigFile(object):
             to the UNIX domain socket.
         log_file (str): The log file name; may be ``None`` to disable file-based logging.
         log_level (int): The log verbosity level for logging to the log file.
+        drive_presence_changed_command (str): The command to execute when the drive bay
+            presence status changed.
+        drive_presence_changed_args (List(str)): A list of arguments passed to the
+            command ``drive_presence_changed_command`` (the placeholders "{drive_bay}",
+            "{drive_name}",  and "{status}" are may be used).
+        power_supply_changed_command (str): The command to execute when the power supply
+            power-up status changed.
+        power_supply_changed_args (List(str)): A list of arguments passed to the
+            command ``power_supply_changed_command`` (the placeholders "{socket}" and
+            "{status}" may be used).
     """
     
     def __init__(self, config_file):
@@ -178,6 +188,10 @@ class ConfigFile(object):
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
         self.declareOption(SECTION, "log_level", default=logging.WARNING, parser=self.parseLogLevel)
+        self.declareOption(SECTION, "drive_presence_changed_command", default=None)
+        self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{drive_name}", "{state}"], parser=self.parseArray)
+        self.declareOption(SECTION, "power_supply_changed_command", default=None)
+        self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
     
     def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
         if attribute_name is None:
@@ -262,6 +276,8 @@ class WdHwDaemon(object):
         self.__cfg = None
         self.__pmc = None
         self.__pmc_version = ""
+        self.__pmc_status = 0
+        self.__pmc_drive_presence_mask = 0
         self.__temperature_reader = None
         self.__fan_controller = None
         self.__server = None
@@ -384,6 +400,75 @@ class WdHwDaemon(object):
                      type(self).__name__)
         result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-c"])
     
+    def notifyDrivePresenceChanged(self, bay_number, present):
+        """Notify change of drive presence state.
+        
+        Args:
+            bay_number (int): The drive bay that changed its presence state.
+            present (bool): A boolean flag indicating the new presence state.
+        """
+        drive_name = ""
+        if bay_number < len(self.__cfg.disk_drives):
+            drive_name = self.__cfg.disk_drives[bay_number]
+        _logger.info("%s: Drive presence changed for bay %d (disk = '%s') to %s",
+                     type(self).__name__,
+                     bay_number, drive_name, "present" if present else "absent"))
+        if self.__cfg.drive_presence_changed_command is not None:
+            cmd = [self.__cfg.drive_presence_changed_command]
+            for arg in self.__cfg.drive_presence_changed_args:
+                cmd.extend(arg.format(drive_bay=str(bay_number),
+                                      drive_name=drive_name,
+                                      status="1" if present else "0"))
+            result = subprocess.call(cmd)
+    
+    def notifyPowerSupplyChanged(self, socket_number, powered_up):
+        """Notify change of power supply state.
+        
+        Args:
+            socket_number (int): The power supply socket that changed its power-up state.
+            powered_up (bool): A boolean flag indicating the new power-up state.
+        """
+        _logger.info("%s: Power adapter status changed for socket %d to %s",
+                     type(self).__name__,
+                     socket_number, "powered up" if powered_up else "powered down"))
+        if self.__cfg.power_supply_changed_command is not None:
+            cmd = [self.__cfg.power_supply_changed_command]
+            for arg in self.__cfg.power_supply_changed_args:
+                cmd.extend(arg.format(socket=str(socket_number),
+                                      status="1" if powered_up else "0"))
+            result = subprocess.call(cmd)
+    
+    def receivedPMCInterrupt(self, isr):
+        """Notify reception of a pending PMC interrupt.
+        
+        Args:
+            isr (int): The interrupt status register value.
+        """
+        if isr != self.__pmc_status:
+            # toggle recorded power adapter state (except upon initial interrupt)
+            power_status_mask = (wdpmcprotocol.PMC_STATUS_POWER_1_UP |
+                                 wdpmcprotocol.PMC_STATUS_POWER_2_UP)
+            self.__pmc_status &= ~power_status_mask
+            self.__pmc_status |= isr & power_status_mask
+        
+        # test for drive presence changes
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED) != 0:
+            presence_mask = self.__pmc.getDrivePresenceMask()
+            presence_delta = presence_mask ^ self.__pmc_drive_presence_mask
+            for drive_bay in range(0, len(self.__cfg.disk_drives)):
+                if (presence_delta & (1<<drive_bay)) != 0:
+                    drive_present = (presence_mask & (1<<drive_bay)) != 0
+                    self.notifyDrivePresenceChanged(drive_bay, drive_present)
+            self.__pmc_drive_presence_mask = presence_mask
+        
+        # test for power status changes
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_POWER_1_STATE_CHANGED) != 0:
+            power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_1_STATE_CHANGED) != 0
+            self.notifyPowerSupplyChanged(1, power_up)
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0:
+            power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0
+            self.notifyPowerSupplyChanged(2, power_up)
+    
     def main(self, argv):
         """Main entrypoint of the hardware controller daemon."""
         with self.__lock:
@@ -457,11 +542,13 @@ class WdHwDaemon(object):
                          type(self).__name__,
                          pmc_version)
             
+            self.__pmc_status = pmc.getStatus()
+            self.__pmc_drive_presence_mask = pmc.getDrivePresenceMask()
+            
             if cfg.pmc_test_mode:
                 _logger.debug("%s: PMC test mode: executing all getter commands",
                               type(self).__name__)
                 pmc.getConfiguration()
-                pmc.getStatus()
                 pmc.getTemperature()
                 pmc.getLEDStatus()
                 pmc.getLEDBlink()
@@ -471,7 +558,6 @@ class WdHwDaemon(object):
                 pmc.getFanSpeed()
                 pmc.getDriveEnabledMask()
                 pmc.getDrivePresenceMask()
-                pmc.getInterruptStatus()
                 pmc.getDLB()
             
             _logger.debug("%s: Enabling all PMC interrupts",
