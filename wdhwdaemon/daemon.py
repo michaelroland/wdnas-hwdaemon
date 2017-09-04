@@ -138,13 +138,13 @@ class ConfigFile(object):
     
     Attributes:
         pmc_port (str): Name of the serial port that the PMC is attached to.
-        pmc_test (bool): Enable PMC protocol testing mode?
+        pmc_test_mode (bool): Enable PMC protocol testing mode?
         disk_drives (List(str)): List of disk drives in the drive bays (in the order of
             PMC drive bay flags).
-        memory_dimms (int): Number of memory DIMMs to monitor.
+        memory_dimms_count (int): Number of memory DIMMs to monitor.
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
-        socket_group (str): Group that is granted access to the UNIX domain socket.
+        socket_group_name (str): Group that is granted access to the UNIX domain socket.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
             to the UNIX domain socket.
         log_file (str): The log file name; may be ``None`` to disable file-based logging.
@@ -169,36 +169,24 @@ class ConfigFile(object):
             raise ConfigFileError("{0} while parsing configuration file '{2}': {1}".format(
                     type(e).__name__, e, config_file))
         SECTION = "wdhwd"
-        self._declareOption("pmc_port",           SECTION, "pmc_port",
-                            default_value=wdpmcprotocol.PMC_UART_PORT_DEFAULT)
-        self._declareOption("pmc_test",           SECTION, "pmc_test_mode",
-                            default_value=False,
-                            parser_func=self._parseBoolean)
-        self._declareOption("disk_drives",        SECTION, "monitor_disk_drives",
-                            default_value=temperature.HDSMART_DISKS,
-                            parser_func=self._parseArray)
-        self._declareOption("memory_dimms",       SECTION, "monitor_memory_dimms_count",
-                            default_value=2,
-                            parser_func=self._parseInteger)
-        self._declareOption("socket_path",        SECTION, "socket_path",
-                            default_value=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
-        self._declareOption("socket_group",       SECTION, "socket_group_name",
-                            default_value=None)
-        self._declareOption("socket_max_clients", SECTION, "socket_max_clients",
-                            default_value=10,
-                            parser_func=self._parseInteger)
-        self._declareOption("log_file",           SECTION, "log_file",
-                            default_value=None)
-        self._declareOption("log_level",          SECTION, "log_level",
-                            default_value=logging.WARNING,
-                            parser_func=self._parseLogLevel)
+        self.declareOption(SECTION, "pmc_port", default=wdpmcprotocol.PMC_UART_PORT_DEFAULT)
+        self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
+        self.declareOption(SECTION, "disk_drives", default=temperature.HDSMART_DISKS, parser=self.parseArray)
+        self.declareOption(SECTION, "memory_dimms_count", default=2, parser=self.parseInteger)
+        self.declareOption(SECTION, "socket_path", default=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
+        self.declareOption(SECTION, "socket_group_name", default=None)
+        self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
+        self.declareOption(SECTION, "log_file", default=None)
+        self.declareOption(SECTION, "log_level", default=logging.WARNING, parser=self.parseLogLevel)
     
-    def _declareOption(self, attribute_name, option_section, option_name, default_value=None, parser_func=str, parser_args=None):
+    def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
+        if attribute_name is None:
+            attribute_name = option_name
         try:
-            option_value = default_value
+            option_value = default
             if self.__cfg.has_option(option_section, option_name):
                 option_raw_value = self.__cfg.get(option_section, option_name)
-                option_value = parser_func(option_raw_value, **parser_args)
+                option_value = parser(option_raw_value, **parser_args)
             setattr(self, attribute_name, option_value)
         except ValueError as e:
             raise ConfigFileError("Invalid value for option {2}"
@@ -208,7 +196,7 @@ class ConfigFile(object):
                                                                          e))
     
     @staticmethod
-    def _parseBoolean(value):
+    def parseBoolean(value):
         value = value.lower()
         if value in ["1", "true", "yes", "on"]:
             return True
@@ -218,11 +206,11 @@ class ConfigFile(object):
             raise ValueError("'{0}' is not a valid boolean value".format(value))
     
     @staticmethod
-    def _parseInteger(value):
+    def parseInteger(value):
         return int(value)
     
     @staticmethod
-    def _parseLogLevel(value):
+    def parseLogLevel(value):
         value = value.lower()
         if value in ["critical", "crit", "c"]:
             return logging.CRITICAL
@@ -242,14 +230,14 @@ class ConfigFile(object):
             raise ValueError("'{0}' is not a valid log level".format(value))
     
     @staticmethod
-    def _parseArray(value, parser_func=str, parser_args=None):
+    def parseArray(value, parser=str, parser_args=None):
         try:
             parsed_value = json.loads(value)
             if type(parsed_value) != list:
                 raise ValueError()
             result = list()
             for element in parsed_value:
-                result.extend(parser_func(element, **parser_args))
+                result.extend(parser(element, **parser_args))
             return result
         except ValueError as e:
             raise ValueError("'{0}' is not a valid array value: {1}".format(value, e))
@@ -271,6 +259,7 @@ class WdHwDaemon(object):
         super(WdHwDaemon, self).__init__()
         self.__lock = threading.RLock()
         self.__running = False
+        self.__cfg = None
         self.__pmc = None
         self.__pmc_version = ""
         self.__temperature_reader = None
@@ -444,6 +433,7 @@ class WdHwDaemon(object):
                       type(self).__name__,
                       args.config)
         cfg = ConfigFile(args.config)
+        self.__cfg = cfg
         if log_level > cfg.log_level:
             log_level = cfg.log_level
             logger.setLevel(log_level)
@@ -467,7 +457,7 @@ class WdHwDaemon(object):
                          type(self).__name__,
                          pmc_version)
             
-            if cfg.pmc_test:
+            if cfg.pmc_test_mode:
                 _logger.debug("%s: PMC test mode: executing all getter commands",
                               type(self).__name__)
                 pmc.getConfiguration()
@@ -503,19 +493,22 @@ class WdHwDaemon(object):
             
             _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s, DIMMs = %d)",
                           type(self).__name__,
-                          pmc_version, num_cpus, cfg.disk_drives, cfg.memory_dimms)
+                          pmc_version, num_cpus, cfg.disk_drives, cfg.memory_dimms_count)
             fan_controller = FanControllerImpl(self,
                                                pmc,
                                                temperature_reader,
                                                cfg.disk_drives,
-                                               cfg.memory_dimms)
+                                               cfg.memory_dimms_count)
             fan_controller.start()
             self.__fan_controller = fan_controller
             
             _logger.debug("%s: Starting controller socket server at %s (group = %s, max-clients = %d)",
                           type(self).__name__,
-                          cfg.socket_path, repr(cfg.socket_group), cfg.socket_max_clients)
-            server = wdhwdaemon.server.WdHwServer(self, cfg.socket_path, cfg.socket_group, cfg.socket_max_clients)
+                          cfg.socket_path, repr(cfg.socket_group_name), cfg.socket_max_clients)
+            server = wdhwdaemon.server.WdHwServer(self,
+                                                  cfg.socket_path,
+                                                  cfg.socket_group_name,
+                                                  cfg.socket_max_clients)
             self.__server = server
             
             _logger.debug("%s: Setting up signal handlers",
