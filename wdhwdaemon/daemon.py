@@ -614,6 +614,10 @@ class WdHwDaemon(object):
             while self.is_running:
                 signal.pause()
             
+        except Exception as e:
+            _logger.error("%s: %s", type(self).__name__, str(e))
+            raise
+        
         finally:
             if self.__server is not None:
                 _logger.debug("%s: Stopping controller socket server",
