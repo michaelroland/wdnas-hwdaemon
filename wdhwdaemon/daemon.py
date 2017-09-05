@@ -174,7 +174,12 @@ class ConfigFile(object):
         try:
             self.__file = self.__cfg.read(config_file)
             if len(self.__file) <= 0:
-                raise ConfigFileError("Configuration file '{0}' not found".format(config_file))
+                _logger.error("%s: Configuration file '%s' not found",
+                              type(self).__name__,
+                              config_file)
+                #raise ConfigFileError("Configuration file '{0}' not found".format(config_file))
+        except ConfigFileError:
+            raise
         except Exception as e:
             raise ConfigFileError("{0} while parsing configuration file '{2}': {1}".format(
                     type(e).__name__, e, config_file))
@@ -412,7 +417,7 @@ class WdHwDaemon(object):
             drive_name = self.__cfg.disk_drives[bay_number]
         _logger.info("%s: Drive presence changed for bay %d (disk = '%s') to %s",
                      type(self).__name__,
-                     bay_number, drive_name, "present" if present else "absent"))
+                     bay_number, drive_name, "present" if present else "absent")
         if self.__cfg.drive_presence_changed_command is not None:
             cmd = [self.__cfg.drive_presence_changed_command]
             for arg in self.__cfg.drive_presence_changed_args:
@@ -430,7 +435,7 @@ class WdHwDaemon(object):
         """
         _logger.info("%s: Power adapter status changed for socket %d to %s",
                      type(self).__name__,
-                     socket_number, "powered up" if powered_up else "powered down"))
+                     socket_number, "powered up" if powered_up else "powered down")
         if self.__cfg.power_supply_changed_command is not None:
             cmd = [self.__cfg.power_supply_changed_command]
             for arg in self.__cfg.power_supply_changed_args:
