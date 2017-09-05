@@ -210,13 +210,15 @@ class ThermalConditionMonitor(object):
         
         This stops the thermal condition monitor thread and waits for its completion.
         """
-        with self.__lock:
+        thread = None
+        with self.__wait, self.__lock:
             if self.__running:
                 self.__running = False
-                with self.__wait:
-                    self.__wait.notifyAll()
-                self.__thread.join()
+                thread = self.__thread
                 self.__thread = None
+                self.__wait.notifyAll()
+        if thread is not None:
+            thread.join()
     
     @property
     def is_running(self):
@@ -605,8 +607,8 @@ class FanController(FanControllerCallback):
         pending_shutdown = False
         self.__status_handler.sendMessage(
                 Message(FanControllerCallbackHandler.MSG_CTRL_STARTED))
-        try:
-            with self.__wait:
+        with self.__wait:
+            try:
                 while self.__running:
                     global_level = FanController.LEVEL_UNDER
                     for monitor in self.__monitors:
@@ -689,10 +691,13 @@ class FanController(FanControllerCallback):
                     
                     last_global_level = global_level
                     self.__wait.wait(FanController.INTERVAL)
-        finally:
-            self.__status_handler.sendMessage(
-                    Message(FanControllerCallbackHandler.MSG_CTRL_STOPPED))
-
+            finally:
+                for monitor in self.__monitors:
+                    monitor.join()
+                self.__status_handler.sendMessage(
+                        Message(FanControllerCallbackHandler.MSG_CTRL_STOPPED))
+                self.__status_handler.join()
+    
     def start(self):
         """Start the fan controller thread.
         
@@ -717,16 +722,15 @@ class FanController(FanControllerCallback):
         
         This stops the fan controller thread and waits for its completion.
         """
-        with self.__lock:
+        thread = None
+        with self.__wait, self.__lock:
             if self.__running:
                 self.__running = False
-                with self.__wait:
-                    self.__wait.notifyAll()
-                self.__thread.join()
+                thread = self.__thread
                 self.__thread = None
-                for monitor in self.__monitors:
-                    monitor.join()
-                self.__status_handler.join()
+                self.__wait.notifyAll()
+        if thread is not None:
+            thread.join()
     
     @property
     def is_running(self):
