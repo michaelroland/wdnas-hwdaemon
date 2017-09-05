@@ -615,7 +615,9 @@ class WdHwDaemon(object):
                 signal.pause()
             
         except Exception as e:
-            _logger.error("%s: %s", type(self).__name__, str(e))
+            _logger.error("%s: Daemon failed with %s: %s; exiting",
+                    type(self).__name__,
+                    type(e).__name__, str(e))
             raise
         
         finally:
