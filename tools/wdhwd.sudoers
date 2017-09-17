@@ -1,0 +1,3 @@
+# sudoers file for Western Digital Hardware Controller Daemon
+wdhwd ALL=(root) NOPASSWD: NOEXEC: NOMAIL: NOSETENV: /usr/sbin/hddtemp -n -u C /dev/sd?, \
+        /sbin/shutdown -P now, /sbin/shutdown -P +60, /sbin/shutdown -c
