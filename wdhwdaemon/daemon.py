@@ -30,6 +30,7 @@ import os
 import os.path
 import pwd
 import signal
+import stat
 import subprocess
 import threading
 
@@ -669,6 +670,9 @@ class WdHwDaemon(object):
                           type(self).__name__,
                           target_uid)
             return
+        _logger.debug("%s: Dropped privileges (user = %d [ruid = %d, euid = %d], group = %d [rgid = %d, egid = %d]",
+                      type(self).__name__,
+                      target_uid, os.getuid(), os.geteuid(), target_gid, os.getgid(), os.getegid())
         
         if log_level > cfg.log_level:
             log_level = cfg.log_level
