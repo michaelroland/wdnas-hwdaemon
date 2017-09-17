@@ -37,6 +37,9 @@ import wdhwdaemon
 _logger = logging.getLogger(__name__)
 
 
+WDHWD_EXIT_SUCCESS = 0
+
+
 class WdHwConnector(BasicPacketClient):
     """WD Hardware Controller Client Connector.
     """
@@ -209,7 +212,14 @@ class WdHwClient(object):
         super(WdHwClient, self).__init__()
     
     def main(self, argv):
-        """Main loop of the hardware controller client."""
+        """Main loop of the hardware controller client.
+        
+        Args:
+            argv (List(str)): List of command line arguments.
+        
+        Returns:
+            int: Exit status code.
+        """
         cmdparser = argparse.ArgumentParser(
                 description=wdhwdaemon.WDHWC_DESCRIPTION,
                 epilog=wdhwdaemon.WDHWD_EPILOG,
@@ -458,10 +468,12 @@ class WdHwClient(object):
             conn.daemonShutdown()
         
         conn.close()
+        
+        return WDHWD_EXIT_SUCCESS
 
 
 if __name__ == "__main__":
     import sys
     c = WdHwClient()
-    c.main(sys.argv)
-
+    ret = c.main(sys.argv)
+    sys.exit(ret)

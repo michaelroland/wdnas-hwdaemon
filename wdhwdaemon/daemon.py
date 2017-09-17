@@ -48,6 +48,10 @@ _logger = logging.getLogger(__name__)
 
 WDHWD_SUPPLEMENTARY_GROUPS = ["i2c"]
 
+WDHWD_EXIT_SUCCESS = 0
+WDHWD_EXIT_CONFIG_ERROR = 10
+WDHWD_EXIT_PERMISSION_ERROR = 11
+
 
 class PMCCommandsImpl(PMCCommands):
     """Western Digital PMC Manager implementation.
@@ -394,7 +398,7 @@ class WdHwDaemon(object):
         """Initiate an immediate system shutdown."""
         _logger.info("%s: Initiating immediate system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-P", "now"])
+        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "now"])
     
     def initiateDelayedSystemShutdown(self, grace_period=60):
         """Initiate a delayed system shutdown.
@@ -406,13 +410,13 @@ class WdHwDaemon(object):
         _logger.info("%s: Scheduled system shutdown in %d minutes",
                      type(self).__name__,
                      grace_period)
-        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
+        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
     
     def cancelPendingSystemShutdown(self):
         """Cancel any pending system shutdown."""
         _logger.info("%s: Cancelling pending system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["sudo", "-n", "/sbin/shutdown", "-c"])
+        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-c"])
     
     def notifyDrivePresenceChanged(self, bay_number, present):
         """Notify change of drive presence state.
@@ -584,7 +588,14 @@ class WdHwDaemon(object):
         os.umask(old_umask)
     
     def main(self, argv):
-        """Main entrypoint of the hardware controller daemon."""
+        """Main entrypoint of the hardware controller daemon.
+        
+        Args:
+            argv (List(str)): List of command line arguments.
+        
+        Returns:
+            int: Exit status code.
+        """
         with self.__lock:
             self.__running = True
         
@@ -637,13 +648,13 @@ class WdHwDaemon(object):
         if not cfg.user:
             _logger.error("%s: Target user not set",
                           type(self).__name__)
-            return
+            return WDHWD_EXIT_CONFIG_ERROR
         target_user_info = self._resolveUserInfo(cfg.user)
         if target_user_info is None:
             _logger.error("%s: Could not resolve user '%s'",
                           type(self).__name__,
                           cfg.user)
-            return
+            return WDHWD_EXIT_CONFIG_ERROR
         (target_user_name, target_uid, target_user_gid) = target_user_info
         target_gid = target_user_gid
         socket_gid = None
@@ -654,7 +665,7 @@ class WdHwDaemon(object):
                 _logger.error("%s: Could not resolve group '%s'",
                               type(self).__name__,
                               cfg.group)
-                return
+                return WDHWD_EXIT_CONFIG_ERROR
         
         # create paths (if necessary)
         if cfg.socket_path:
@@ -700,7 +711,7 @@ class WdHwDaemon(object):
             _logger.error("%s: Failed to set real/effective group ID to '%d': %d (%s)",
                           type(self).__name__,
                           target_gid, e.errno, str(serr))
-            return
+            return WDHWD_EXIT_PERMISSION_ERROR
         try:
             os.setresuid(target_uid, target_uid, target_uid)
         except OSError as e:
@@ -712,7 +723,7 @@ class WdHwDaemon(object):
             _logger.error("%s: Failed to set real/effective user ID to '%d': %d (%s)",
                           type(self).__name__,
                           target_uid, e.errno, str(serr))
-            return
+            return WDHWD_EXIT_PERMISSION_ERROR
         _logger.debug("%s: Dropped privileges (user = %d, group = %d, supplementary_groups = %s)",
                       type(self).__name__,
                       target_uid, target_gid, repr(target_supplementary_gids))
@@ -815,6 +826,8 @@ class WdHwDaemon(object):
                     type(e).__name__, str(e))
             raise
         
+        return WDHWD_EXIT_SUCCESS
+        
         finally:
             if self.__server is not None:
                 _logger.debug("%s: Stopping controller socket server",
@@ -839,4 +852,5 @@ class WdHwDaemon(object):
 if __name__ == "__main__":
     import sys
     d = WdHwDaemon()
-    d.main(sys.argv)
+    ret = d.main(sys.argv)
+    sys.exit(ret)
