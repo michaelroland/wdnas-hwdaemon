@@ -273,7 +273,7 @@ class ConfigFile(object):
                 raise ValueError()
             result = list()
             for element in parsed_value:
-                result.extend(parser(element, **parser_args))
+                result.append(parser(element, **parser_args))
             return result
         except ValueError as e:
             raise ValueError("'{0}' is not a valid array value: {1}".format(value, e))
