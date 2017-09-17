@@ -46,6 +46,9 @@ import wdhwdaemon
 _logger = logging.getLogger(__name__)
 
 
+WDHWD_SUPPLEMENTARY_GROUPS = ["i2c"]
+
+
 class PMCCommandsImpl(PMCCommands):
     """Western Digital PMC Manager implementation.
     """
@@ -480,14 +483,15 @@ class WdHwDaemon(object):
             power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0
             self.notifyPowerSupplyChanged(2, power_up)
     
-    def _resolveUserId(self, user):
-        """Resolve the numeric user ID for a given user name or ID.
+    def _resolveUserInfo(self, user):
+        """Resolve the user information for a given user name or ID.
         
         Args:
-            user (str): Name or ID of the user to resolve to a numeric user ID.
+            user (str): Name or ID of the user to resolve the user info for.
         
         Returns:
-            int: Resolved numeric user ID or None.
+            tuple(str, int, int): Tuple of resolved user name, numeric user ID, and
+                numeric main group ID; or None.
         """
         if user is not None:
             try:
@@ -498,30 +502,7 @@ class WdHwDaemon(object):
                 except ValueError:
                     user_info = pwd.getpwnam(user)
                 if user_info is not None:
-                    return user_info.pw_uid
-            except:
-                pass
-        return None
-    
-    def _resolveUserGroupId(self, user):
-        """Resolve the numeric main group ID for a given user name or ID.
-        
-        Args:
-            user (str): Name or ID of the user to resolve to a numeric main group ID.
-        
-        Returns:
-            int: Resolved numeric group ID or None.
-        """
-        if user is not None:
-            try:
-                user_info = None
-                try:
-                    uid = int(user)
-                    user_info = pwd.getpwuid(uid)
-                except ValueError:
-                    user_info = pwd.getpwnam(user)
-                if user_info is not None:
-                    return user_info.pw_gid
+                    return (user_info.pw_name, user_info.pw_uid, user_info.pw_gid)
             except:
                 pass
         return None
@@ -548,6 +529,39 @@ class WdHwDaemon(object):
             except:
                 pass
         return None
+    
+    def _resolveSupplementaryGroups(self, username):
+        """Resolve all supplementary groups for a given user name.
+        
+        Args:
+            username (str): Name of the user to resolve all supplementary groups for.
+        
+        Returns:
+            List(int): List of numeric group IDs.
+        """
+        supplementary_gids = []
+        for group in grp.getgrall():
+            if username in group.gr_mem:
+                supplementary_gids.append(g.gr_gid)
+        return supplementary_gids
+    
+    def _resolveFileAccessGroups(self, filenames):
+        """Resolve groups necessary for accessing given files.
+        
+        Args:
+            filenames (List(str)): List of file names to assemble groups from.
+        
+        Returns:
+            List(int): List of numeric group IDs.
+        """
+        file_access_gids = []
+        for filename in filenames:
+            try:
+                stat_info = os.stat(filename)
+                file_access_gids.append(stat_info.st_gid)
+            except:
+                pass
+        return file_access_gids
     
     def _createDir(self, path, uid, gid=None):
         old_umask = os.umask(stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
@@ -624,22 +638,16 @@ class WdHwDaemon(object):
             _logger.error("%s: Target user not set",
                           type(self).__name__)
             return
-        target_uid = self._resolveUserId(cfg.user)
-        if target_uid is None:
+        target_user_info = self._resolveUserInfo(cfg.user)
+        if target_user_info is None:
             _logger.error("%s: Could not resolve user '%s'",
                           type(self).__name__,
                           cfg.user)
             return
-        target_gid = None
+        (target_user_name, target_uid, target_user_gid) = target_user_info
+        target_gid = target_user_gid
         socket_gid = None
-        if cfg.group is None:
-            target_gid = self._resolveUserGroupId(cfg.user)
-            if target_gid is None:
-                _logger.error("%s: Could not resolve main group for user '%s'",
-                              type(self).__name__,
-                              cfg.user)
-                return
-        else:
+        if cfg.group:
             target_gid = self._resolveGroupId(cfg.group)
             socket_gid = target_gid
             if target_gid is None:
@@ -654,25 +662,60 @@ class WdHwDaemon(object):
         if cfg.log_file:
             self._createDir(os.path.dirname(cfg.log_file), target_uid, 0)
         
+        # assemble list of supplementary groups
+        target_supplementary_gids = self._resolveSupplementaryGroups(target_user_name)
+        if target_user_gid not in target_supplementary_gids:
+            target_supplementary_gids.append(target_user_gid)
+        if target_gid not in target_supplementary_gids:
+            target_supplementary_gids.append(target_gid)
+        for file_access_gid in self._resolveFileAccessGroups([cfg.pmc_port]):
+            if (file_access_gid != 0) and (file_access_gid not in target_supplementary_gids):
+                target_supplementary_gids.append(file_access_gid)
+        for additional_group in WDHWD_SUPPLEMENTARY_GROUPS:
+            additional_gid = self._resolveGroupId(additional_group)
+            if additional_gid is not None:
+                target_supplementary_gids.append(additional_gid)
+        
         # drop privileges
-        if os.setgroups([target_gid]) != 0:
-            #_logger.error("%s: Failed to drop supplementary groups",
-            #              type(self).__name__)
+        try:
+            os.setgroups(target_supplementary_gids)
+        except OSError as e:
+            serr = None
+            try:
+                serr = os.strerror(e.errno)
+            except:
+                pass
+            _logger.error("%s: Failed to drop supplementary groups: %d (%s)",
+                          type(self).__name__, e.errno, str(serr))
             #return
             pass
-        if os.setresgid(target_gid, target_gid, target_gid) != 0:
-            _logger.error("%s: Failed to set real/effective group ID to '%d'",
+        try:
+            os.setresgid(target_gid, target_gid, target_gid)
+        except OSError as e:
+            serr = None
+            try:
+                serr = os.strerror(e.errno)
+            except:
+                pass
+            _logger.error("%s: Failed to set real/effective group ID to '%d': %d (%s)",
                           type(self).__name__,
-                          target_gid)
+                          target_gid, e.errno, str(serr))
             return
-        if os.setresuid(target_uid, target_uid, target_uid) != 0:
-            _logger.error("%s: Failed to set real/effective user ID to '%d'",
+        try:
+            os.setresuid(target_uid, target_uid, target_uid)
+        except OSError as e:
+            serr = None
+            try:
+                serr = os.strerror(e.errno)
+            except:
+                pass
+            _logger.error("%s: Failed to set real/effective user ID to '%d': %d (%s)",
                           type(self).__name__,
-                          target_uid)
+                          target_uid, e.errno, str(serr))
             return
-        _logger.debug("%s: Dropped privileges (user = %d [ruid = %d, euid = %d], group = %d [rgid = %d, egid = %d]",
+        _logger.debug("%s: Dropped privileges (user = %d, group = %d, supplementary_groups = %s)",
                       type(self).__name__,
-                      target_uid, os.getuid(), os.geteuid(), target_gid, os.getgid(), os.getegid())
+                      target_uid, target_gid, repr(target_supplementary_gids))
         
         if log_level > cfg.log_level:
             log_level = cfg.log_level
@@ -745,7 +788,9 @@ class WdHwDaemon(object):
             
             _logger.debug("%s: Starting controller socket server at %s (group = %d, max-clients = %d)",
                           type(self).__name__,
-                          cfg.socket_path, socket_gid, cfg.socket_max_clients)
+                          cfg.socket_path,
+                          socket_gid if socket_gid is not None else -1,
+                          cfg.socket_max_clients)
             server = wdhwdaemon.server.WdHwServer(self,
                                                   cfg.socket_path,
                                                   socket_gid,
