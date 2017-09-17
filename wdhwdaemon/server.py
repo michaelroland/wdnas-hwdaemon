@@ -607,7 +607,7 @@ class WdHwServer(SocketListener):
         Args:
             hw_daemon (wdhwdaemon.daemon.WdHwDaemon): The parent hardware controller daemon.
             socket_path (str): File path of the named UNIX domain socket.
-            socket_group (str): Optional name of a group that gets access to the socket (or
+            socket_group (int): Optional ID of a group that gets access to the socket (or
                 None to grant no group permissions).
             max_clients (int): Maximum number of concurrent clients.
         """

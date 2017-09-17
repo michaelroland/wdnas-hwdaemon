@@ -48,29 +48,11 @@ class UnixSocketFactory(object):
         if os.path.exists(self.__socket_path):
             os.remove(self.__socket_path)
     
-    def _resolveGroupId(self, group):
-        """Resolve the numeric group ID for a given group name.
-        
-        Args:
-            group (str): Name of the group to resolve to a numeric group ID.
-        
-        Returns:
-            int: Resolved numeric group ID or None.
-        """
-        if group is not None:
-            try:
-                group_info = grp.getgrnam(group)
-                if group_info is not None:
-                    return group_info.gr_gid
-            except:
-                pass
-        return None
-    
     def bindSocket(self, group=None):
         """Bind the named server socket and setup permissions.
         
         Args:
-            group (str): Optional name of a group that gets access to the socket (or
+            group (int): Optional ID of a group that gets access to the socket (or
                 None to grant no group permissions).
         
         Returns:
@@ -85,9 +67,8 @@ class UnixSocketFactory(object):
         os.umask(old_umask)
         
         permissions = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
-        group_id = self._resolveGroupId(group)
-        if group_id is not None:
-            os.chown(self.__socket_path, -1, group_id)
+        if group is not None:
+            os.chown(self.__socket_path, -1, group)
             permissions |= stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP
         os.chmod(self.__socket_path, permissions)
         

@@ -22,9 +22,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import ConfigParser
+import grp
 import json
 import logging
 import logging.handlers
+import os
+import os.path
+import pwd
 import signal
 import subprocess
 import threading
@@ -184,12 +188,13 @@ class ConfigFile(object):
             raise ConfigFileError("{0} while parsing configuration file '{2}': {1}".format(
                     type(e).__name__, e, config_file))
         SECTION = "wdhwd"
+        self.declareOption(SECTION, "user", default=wdhwdaemon.WDHWD_USER_DEFAULT)
+        self.declareOption(SECTION, "group", default=None)
         self.declareOption(SECTION, "pmc_port", default=wdpmcprotocol.PMC_UART_PORT_DEFAULT)
         self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
         self.declareOption(SECTION, "disk_drives", default=temperature.HDSMART_DISKS, parser=self.parseArray)
         self.declareOption(SECTION, "memory_dimms_count", default=2, parser=self.parseInteger)
         self.declareOption(SECTION, "socket_path", default=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
-        self.declareOption(SECTION, "socket_group_name", default=None)
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
         self.declareOption(SECTION, "log_level", default=logging.WARNING, parser=self.parseLogLevel)
@@ -474,6 +479,95 @@ class WdHwDaemon(object):
             power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0
             self.notifyPowerSupplyChanged(2, power_up)
     
+    def _resolveUserId(self, user):
+        """Resolve the numeric user ID for a given user name or ID.
+        
+        Args:
+            user (str): Name or ID of the user to resolve to a numeric user ID.
+        
+        Returns:
+            int: Resolved numeric user ID or None.
+        """
+        if user is not None:
+            try:
+                user_info = None
+                try:
+                    uid = int(user)
+                    user_info = pwd.getpwuid(uid)
+                except ValueError:
+                    user_info = pwd.getpwnam(user)
+                if user_info is not None:
+                    return user_info.pw_uid
+            except:
+                pass
+        return None
+    
+    def _resolveUserGroupId(self, user):
+        """Resolve the numeric main group ID for a given user name or ID.
+        
+        Args:
+            user (str): Name or ID of the user to resolve to a numeric main group ID.
+        
+        Returns:
+            int: Resolved numeric group ID or None.
+        """
+        if user is not None:
+            try:
+                user_info = None
+                try:
+                    uid = int(user)
+                    user_info = pwd.getpwuid(uid)
+                except ValueError:
+                    user_info = pwd.getpwnam(user)
+                if user_info is not None:
+                    return user_info.pw_gid
+            except:
+                pass
+        return None
+    
+    def _resolveGroupId(self, group):
+        """Resolve the numeric group ID for a given group name or ID.
+        
+        Args:
+            group (str): Name or ID of the group to resolve to a numeric group ID.
+        
+        Returns:
+            int: Resolved numeric group ID or None.
+        """
+        if group is not None:
+            try:
+                group_info = None
+                try:
+                    gid = int(group)
+                    group_info = grp.getgrgid(gid)
+                except ValueError:
+                    group_info = grp.getgrnam(group)
+                if group_info is not None:
+                    return group_info.gr_gid
+            except:
+                pass
+        return None
+    
+    def _createDir(self, path, uid, gid=None):
+        old_umask = os.umask(stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+                             stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH)
+        create_components = []
+        while not os.path.exists(path):
+            create_components.insert(0, path)
+            path = os.path.dirname(path)
+        permissions = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
+        if uid is None:
+            uid = -1
+        if gid is None:
+            gid = -1
+        else:
+            permissions |= stat.S_IRGRP | stat.S_IXGRP
+        for p in create_components:
+            os.mkdir(p)
+            os.chown(p, uid, gid)
+            os.chmod(p, permissions)
+        os.umask(old_umask)
+    
     def main(self, argv):
         """Main entrypoint of the hardware controller daemon."""
         with self.__lock:
@@ -524,10 +618,62 @@ class WdHwDaemon(object):
                       args.config)
         cfg = ConfigFile(args.config)
         self.__cfg = cfg
+        
+        if not cfg.user:
+            _logger.error("%s: Target user not set",
+                          type(self).__name__)
+            return
+        target_uid = self._resolveUserId(cfg.user)
+        if target_uid is None:
+            _logger.error("%s: Could not resolve user '%s'",
+                          type(self).__name__,
+                          cfg.user)
+            return
+        target_gid = None
+        socket_gid = None
+        if cfg.group is None:
+            target_gid = self._resolveUserGroupId(cfg.user)
+            if target_gid is None:
+                _logger.error("%s: Could not resolve main group for user '%s'",
+                              type(self).__name__,
+                              cfg.user)
+                return
+        else:
+            target_gid = self._resolveGroupId(cfg.group)
+            socket_gid = target_gid
+            if target_gid is None:
+                _logger.error("%s: Could not resolve group '%s'",
+                              type(self).__name__,
+                              cfg.group)
+                return
+        
+        # create paths (if necessary)
+        if cfg.socket_path:
+            self._createDir(os.path.dirname(cfg.socket_path), target_uid, socket_gid)
+        if cfg.log_file:
+            self._createDir(os.path.dirname(cfg.log_file), target_uid, 0)
+        
+        # drop privileges
+        if os.setgroups([target_gid]) != 0:
+            #_logger.error("%s: Failed to drop supplementary groups",
+            #              type(self).__name__)
+            #return
+            pass
+        if os.setresgid(target_gid, target_gid, target_gid) != 0:
+            _logger.error("%s: Failed to set real/effective group ID to '%d'",
+                          type(self).__name__,
+                          target_gid)
+            return
+        if os.setresuid(target_uid, target_uid, target_uid) != 0:
+            _logger.error("%s: Failed to set real/effective user ID to '%d'",
+                          type(self).__name__,
+                          target_uid)
+            return
+        
         if log_level > cfg.log_level:
             log_level = cfg.log_level
             logger.setLevel(log_level)
-        if cfg.log_file is not None:
+        if cfg.log_file:
             filelog = logging.handlers.RotatingFileHandler(cfg.log_file, maxBytes=52428800, backupCount=3)
             filelog.setLevel(cfg.log_level)
             filelog.setFormatter(formatter)
@@ -593,12 +739,12 @@ class WdHwDaemon(object):
             fan_controller.start()
             self.__fan_controller = fan_controller
             
-            _logger.debug("%s: Starting controller socket server at %s (group = %s, max-clients = %d)",
+            _logger.debug("%s: Starting controller socket server at %s (group = %d, max-clients = %d)",
                           type(self).__name__,
-                          cfg.socket_path, repr(cfg.socket_group_name), cfg.socket_max_clients)
+                          cfg.socket_path, socket_gid, cfg.socket_max_clients)
             server = wdhwdaemon.server.WdHwServer(self,
                                                   cfg.socket_path,
-                                                  cfg.socket_group_name,
+                                                  socket_gid,
                                                   cfg.socket_max_clients)
             self.__server = server
             

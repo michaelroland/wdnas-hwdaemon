@@ -36,6 +36,7 @@ terms of the GPLv3+.  There is NO WARRANTY; not even the implied warranty
 of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
 WDHWD_PROTOCOL_VERSION = "WDHWD v{version}".format(version=__version__)
+WDHWD_USER_DEFAULT = "wdhwd"
 WDHWD_CONFIG_FILE_DEFAULT = "/etc/wdhwd.conf"
 WDHWD_SOCKET_FILE_DEFAULT = "/run/wdhwd/hws.sock"
 
