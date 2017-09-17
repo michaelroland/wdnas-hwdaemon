@@ -820,13 +820,13 @@ class WdHwDaemon(object):
             while self.is_running:
                 signal.pause()
             
+            return WDHWD_EXIT_SUCCESS
+        
         except Exception as e:
             _logger.error("%s: Daemon failed with %s: %s; exiting",
                     type(self).__name__,
                     type(e).__name__, str(e))
             raise
-        
-        return WDHWD_EXIT_SUCCESS
         
         finally:
             if self.__server is not None:
