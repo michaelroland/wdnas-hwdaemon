@@ -214,6 +214,8 @@ class ConfigFile(object):
     def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
         if attribute_name is None:
             attribute_name = option_name
+        if parser_args is None:
+            parser_args = {}
         try:
             option_value = default
             if self.__cfg.has_option(option_section, option_name):
@@ -263,6 +265,8 @@ class ConfigFile(object):
     
     @staticmethod
     def parseArray(value, parser=str, parser_args=None):
+        if parser_args is None:
+            parser_args = {}
         try:
             parsed_value = json.loads(value)
             if type(parsed_value) != list:
