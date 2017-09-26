@@ -509,7 +509,7 @@ class WdHwDaemon(object):
             power_status_mask = (wdpmcprotocol.PMC_STATUS_POWER_1_UP |
                                  wdpmcprotocol.PMC_STATUS_POWER_2_UP)
             self.__pmc_status &= ~power_status_mask
-            self.__pmc_status |= isr & power_status_mask
+            self.__pmc_status ^= isr & power_status_mask
         
         # test for drive presence changes
         if (isr & wdpmcprotocol.PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED) != 0:
