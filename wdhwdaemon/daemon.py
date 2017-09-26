@@ -478,7 +478,7 @@ class WdHwDaemon(object):
             for arg in self.__cfg.drive_presence_changed_args:
                 cmd.append(arg.format(drive_bay=str(bay_number),
                                       drive_name=drive_name,
-                                      status="1" if present else "0"))
+                                      state="1" if present else "0"))
             result = subprocess.call(cmd)
     
     def notifyPowerSupplyChanged(self, socket_number, powered_up):
@@ -495,7 +495,7 @@ class WdHwDaemon(object):
             cmd = [self.__cfg.power_supply_changed_command]
             for arg in self.__cfg.power_supply_changed_args:
                 cmd.append(arg.format(socket=str(socket_number),
-                                      status="1" if powered_up else "0"))
+                                      state="1" if powered_up else "0"))
             result = subprocess.call(cmd)
     
     def receivedPMCInterrupt(self, isr):
