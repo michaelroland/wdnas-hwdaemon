@@ -39,7 +39,7 @@ fi
 ${sendmail} -t -oi -- ${mail_recipient_addr} <<EOM
 From: ${mail_sender_name} <${mail_sender_addr}>
 To: ${mail_recipient_addr}
-Subject: [${mail_sender_name}] Power supply ${power_state_human}
+Subject: [${mail_sender_name}] Power supply ${power_socket} ${power_state_human}
 
 Event: Power supply ${power_state_human}
 Event time: ${event_timestamp}
