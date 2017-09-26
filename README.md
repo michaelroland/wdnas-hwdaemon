@@ -71,6 +71,16 @@ when choosing a different location):
     sudo chmod -R u=rwx,go=rx /usr/local/lib/wdhwd/scripts/*
 
 
+### Prepare logging directory
+
+The sample configuration expects a logging directory writable by the user wdhwd at
+<samp>/var/log/wdhwd</samp>:
+
+    sudo mkdir /var/log/wdhwd
+    sudo chown root.wdhwd /var/log/wdhwd
+    sudo chmod -R ug=rwX,o= /var/log/wdhwd
+
+
 ### Install and start the daemon
 
 In order to use systemd to manage (i.e. start and stop) the hardware controller
