@@ -434,7 +434,7 @@ class WdHwDaemon(object):
         """
         cmd = [self.__cfg.system_up_command]
         #for arg in self.__cfg.system_up_args:
-        #    cmd.append(arg.format()
+        #    cmd.append(arg.format())
         result = subprocess.call(cmd)
         
     def notifySystemDown(self):
@@ -442,7 +442,7 @@ class WdHwDaemon(object):
         """
         cmd = [self.__cfg.system_down_command]
         #for arg in self.__cfg.system_down_args:
-        #    cmd.append(arg.format()
+        #    cmd.append(arg.format())
         result = subprocess.call(cmd)
         
     def temperatureLevelChanged(self, new_level, old_level):
@@ -457,7 +457,7 @@ class WdHwDaemon(object):
         cmd = [self.__cfg.temperature_changed_command]
         for arg in self.__cfg.temperature_changed_args:
             cmd.append(arg.format(new_level=str(new_level),
-                                  old_level=str(old_level))
+                                  old_level=str(old_level)))
         result = subprocess.call(cmd)
         
     def notifyDrivePresenceChanged(self, bay_number, present):
