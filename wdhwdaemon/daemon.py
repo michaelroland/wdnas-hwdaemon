@@ -139,6 +139,7 @@ class FanControllerImpl(FanController):
         _logger.debug("%s: Temperature alert level changed from %d to %d",
                       type(self).__name__,
                       old_level, new_level)
+        self.__hw_daemon.temperatureLevelChanged(new_level, old_level)
 
 
 class ConfigFileError(Exception):
@@ -206,10 +207,16 @@ class ConfigFile(object):
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
         self.declareOption(SECTION, "log_level", default=logging.WARNING, parser=self.parseLogLevel)
+        self.declareOption(SECTION, "system_up_command", default=None)
+        #self.declareOption(SECTION, "system_up_args", default=[], parser=self.parseArray)
+        self.declareOption(SECTION, "system_down_command", default=None)
+        #self.declareOption(SECTION, "system_down_args", default=[], parser=self.parseArray)
         self.declareOption(SECTION, "drive_presence_changed_command", default=None)
         self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{drive_name}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "power_supply_changed_command", default=None)
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
+        self.declareOption(SECTION, "temperature_changed_command", default=None)
+        self.declareOption(SECTION, "temperature_changed_args", default=["{new_level}", "{old_level}"], parser=self.parseArray)
     
     def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
         if attribute_name is None:
@@ -422,6 +429,37 @@ class WdHwDaemon(object):
                      type(self).__name__)
         result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-c"])
     
+    def notifySystemUp(self):
+        """Notify hardware controller daemon start completed.
+        """
+        cmd = [self.__cfg.system_up_command]
+        #for arg in self.__cfg.system_up_args:
+        #    cmd.append(arg.format()
+        result = subprocess.call(cmd)
+        
+    def notifySystemDown(self):
+        """Notify hardware controller daemon stopping.
+        """
+        cmd = [self.__cfg.system_down_command]
+        #for arg in self.__cfg.system_down_args:
+        #    cmd.append(arg.format()
+        result = subprocess.call(cmd)
+        
+    def temperatureLevelChanged(self, new_level, old_level):
+        """Notify change of temperature level.
+        
+        Args:
+            new_level (int): The new temperature level.
+            old_level (int): The old temperature level.
+        """
+        if (old_level is None) and (new_level < FanController.LEVEL_HOT):
+            return
+        cmd = [self.__cfg.temperature_changed_command]
+        for arg in self.__cfg.temperature_changed_args:
+            cmd.append(arg.format(new_level=str(new_level),
+                                  old_level=str(old_level))
+        result = subprocess.call(cmd)
+        
     def notifyDrivePresenceChanged(self, bay_number, present):
         """Notify change of drive presence state.
         
@@ -438,7 +476,7 @@ class WdHwDaemon(object):
         if self.__cfg.drive_presence_changed_command is not None:
             cmd = [self.__cfg.drive_presence_changed_command]
             for arg in self.__cfg.drive_presence_changed_args:
-                cmd.extend(arg.format(drive_bay=str(bay_number),
+                cmd.append(arg.format(drive_bay=str(bay_number),
                                       drive_name=drive_name,
                                       status="1" if present else "0"))
             result = subprocess.call(cmd)
@@ -456,7 +494,7 @@ class WdHwDaemon(object):
         if self.__cfg.power_supply_changed_command is not None:
             cmd = [self.__cfg.power_supply_changed_command]
             for arg in self.__cfg.power_supply_changed_args:
-                cmd.extend(arg.format(socket=str(socket_number),
+                cmd.append(arg.format(socket=str(socket_number),
                                       status="1" if powered_up else "0"))
             result = subprocess.call(cmd)
     
@@ -818,7 +856,9 @@ class WdHwDaemon(object):
             signal.signal(signal.SIGINT,  self.__sigHandler)
             signal.signal(signal.SIGQUIT, self.__sigHandler)
             signal.signal(signal.SIGALRM, self.__sigHandler)
-
+            
+            self.notifySystemUp()
+            
             _logger.debug("%s: Daemonizing...waiting for shutdown signal",
                           type(self).__name__)
             while self.is_running:
@@ -833,6 +873,8 @@ class WdHwDaemon(object):
             raise
         
         finally:
+            self.notifySystemDown()
+            
             if self.__server is not None:
                 _logger.debug("%s: Stopping controller socket server",
                               type(self).__name__)
