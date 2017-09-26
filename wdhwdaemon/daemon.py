@@ -508,7 +508,6 @@ class WdHwDaemon(object):
             # toggle recorded power adapter state (except upon initial interrupt)
             power_status_mask = (wdpmcprotocol.PMC_STATUS_POWER_1_UP |
                                  wdpmcprotocol.PMC_STATUS_POWER_2_UP)
-            self.__pmc_status &= ~power_status_mask
             self.__pmc_status ^= isr & power_status_mask
         
         # test for drive presence changes
