@@ -44,6 +44,7 @@ Subject: [${mail_sender_name}] Drive presence changed
 
 Event: Drive presence changed
 Event time: ${event_timestamp}
+Hostname: $(hostname -f)
 
 Disk ${drive_name} in drive bay ${drive_bay} changed its presence state.
 The drive is ${drive_state_human} now.
@@ -54,7 +55,6 @@ New state: ${drive_state_human} (${drive_state})
 
 
 System: $(uname -a)
-Hostname: $(hostname -f)
 
 EOM
 

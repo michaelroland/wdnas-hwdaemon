@@ -33,12 +33,12 @@ From: ${mail_sender_name} <${mail_sender_addr}>
 To: ${mail_recipient_addr}
 Subject: [${mail_sender_name}] System is up and running
 
-Event: System is up and runing
+Event: System is up and running
 Event time: ${event_timestamp}
+Hostname: $(hostname -f)
 
 
 System: $(uname -a)
-Hostname: $(hostname -f)
 
 EOM
 

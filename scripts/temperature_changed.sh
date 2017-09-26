@@ -45,13 +45,13 @@ Subject: [${mail_sender_name}] Temperature alert level changed to ${new_level_hu
 
 Event: Temperature alert level changed
 Event time: ${event_timestamp}
+Hostname: $(hostname -f)
 
 New level: ${new_level_human} (${new_level})
 Old level: ${old_level_human} (${old_level})
 
 
 System: $(uname -a)
-Hostname: $(hostname -f)
 
 EOM
 

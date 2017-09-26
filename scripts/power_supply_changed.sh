@@ -43,6 +43,7 @@ Subject: [${mail_sender_name}] Power supply ${power_state_human}
 
 Event: Power supply ${power_state_human}
 Event time: ${event_timestamp}
+Hostname: $(hostname -f)
 
 Power supply on socket ${power_socket} ${power_state_human}.
 
@@ -51,7 +52,6 @@ New state: ${power_state_human} (${power_state})
 
 
 System: $(uname -a)
-Hostname: $(hostname -f)
 
 EOM
 

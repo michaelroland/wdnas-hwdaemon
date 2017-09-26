@@ -35,10 +35,10 @@ Subject: [${mail_sender_name}] System is going down
 
 Event: System is going down
 Event time: ${event_timestamp}
+Hostname: $(hostname -f)
 
 
 System: $(uname -a)
-Hostname: $(hostname -f)
 
 EOM
 
