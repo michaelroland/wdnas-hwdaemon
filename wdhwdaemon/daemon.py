@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import argparse
-import ConfigParser
+import configparser
 import grp
 import json
 import logging
@@ -183,7 +183,7 @@ class ConfigFile(object):
         """
         super(ConfigFile, self).__init__()
         self.__file = config_file
-        self.__cfg = ConfigParser.RawConfigParser()
+        self.__cfg = configparser.RawConfigParser()
         try:
             self.__file = self.__cfg.read(config_file)
             if len(self.__file) <= 0:

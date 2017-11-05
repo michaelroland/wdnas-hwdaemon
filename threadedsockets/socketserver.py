@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from contextlib import contextmanager
 import logging
 import socket
-from Queue import Queue
+import queue
 import threading
 
 from threadedsockets import SocketConnectionBrokenError, SocketSecurityException
@@ -240,7 +240,7 @@ class SocketListener(object):
         self.__running = True
         self.__socket_lock = threading.RLock()
         self.__socket = server_socket
-        self.__connection_queue = Queue(max_clients)
+        self.__connection_queue = queue.Queue(max_clients)
         self.__connection_thread_pool = []
         for i in range(0, max_clients):
             self.__connection_thread_pool.append(self._spawnServerThread())

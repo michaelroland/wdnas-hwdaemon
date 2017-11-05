@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from Queue import Queue
+import queue
 import threading
 
 from messagequeue import Message
@@ -43,7 +43,7 @@ class Handler(object):
         """
         super(Handler, self).__init__()
         self.__lock = threading.RLock()
-        self.__msg_queue = Queue()
+        self.__msg_queue = queue.Queue()
         self.__running = False
         self.__handler_thread = None
         self.__daemonize = daemonize
