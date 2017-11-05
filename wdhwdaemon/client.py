@@ -351,51 +351,51 @@ class WdHwClient(object):
         if args.command == "version":
             daemon_version = conn.getVersion()
             pmc_version = conn.getPMCVersion()
-            print "Daemon version: {0}".format(daemon_version)
-            print "PMC version: {0}".format(pmc_version)
+            print("Daemon version: {0}".format(daemon_version))
+            print("PMC version: {0}".format(pmc_version))
         
         elif args.command == "led":
             if args.get or ((not args.steady) and (not args.blink) and (not args.pulse)):
                 if args.led_type == "power":
                     led_status = conn.getPowerLED()
-                    print "Power LED\t{0:5}\t{1:5}\t{2:5}".format(
-                            "red", "green", "blue")
-                    print "----------------------------------------"
+                    print("Power LED\t{0:5}\t{1:5}\t{2:5}".format(
+                            "red", "green", "blue"))
+                    print("----------------------------------------")
                     if led_status.mask_const:
-                        print "steady:  \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on" if led_status.red_const   else "off",
                                 "on" if led_status.green_const else "off",
-                                "on" if led_status.blue_const  else "off")
+                                "on" if led_status.blue_const  else "off"))
                     if led_status.mask_blink:
-                        print "blink:   \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on" if led_status.red_blink   else "off",
                                 "on" if led_status.green_blink else "off",
-                                "on" if led_status.blue_blink  else "off")
+                                "on" if led_status.blue_blink  else "off"))
                     if led_status.mask_pulse:
-                        print "pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on" if led_status.red_pulse   else "---",
                                 "on" if led_status.green_pulse else "---",
-                                "on" if led_status.blue_pulse  else "off")
+                                "on" if led_status.blue_pulse  else "off"))
                 elif args.led_type == "usb":
                     led_status = conn.getUSBLED()
-                    print "USB LED  \t{0:5}\t{1:5}\t{2:5}".format(
-                            "red", "green", "blue")
-                    print "----------------------------------------"
+                    print("USB LED  \t{0:5}\t{1:5}\t{2:5}".format(
+                            "red", "green", "blue"))
+                    print("----------------------------------------")
                     if led_status.mask_const:
-                        print "steady:  \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on " if led_status.red_const   else "off",
                                 "on " if led_status.green_const else "---",
-                                "on " if led_status.blue_const  else "off")
+                                "on " if led_status.blue_const  else "off"))
                     if led_status.mask_blink:
-                        print "blink:   \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on " if led_status.red_blink   else "off",
                                 "on " if led_status.green_blink else "---",
-                                "on " if led_status.blue_blink  else "off")
+                                "on " if led_status.blue_blink  else "off"))
                     if led_status.mask_pulse:
-                        print "pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
+                        print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
                                 "on " if led_status.red_pulse   else "---",
                                 "on " if led_status.green_pulse else "---",
-                                "on " if led_status.blue_pulse  else "---")
+                                "on " if led_status.blue_pulse  else "---"))
             else:
                 led_status = LEDStatus()
                 if args.steady:
@@ -422,7 +422,7 @@ class WdHwClient(object):
             if args.get or (args.speed is None):
                 fan_rpm = conn.getFanRPM()
                 fan_speed = conn.getFanSpeed()
-                print "Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed)
+                print("Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed))
             else:
                 if (args.speed < 0) or (args.speed > 100):
                     cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
@@ -436,14 +436,14 @@ class WdHwClient(object):
                 config_register = conn.getPMCConfiguration()
                 status_register = conn.getPMCStatus()
                 dlb = conn.getPMCDLB()
-                print "Automatic HDD power-up on presence detection: {0}".format(
-                        "on" if (config_register & 0x001) != 0 else "off")
-                print "Drive bay\tDrive present\tDrive enabled"
+                print("Automatic HDD power-up on presence detection: {0}".format(
+                        "on" if (config_register & 0x001) != 0 else "off"))
+                print("Drive bay\tDrive present\tDrive enabled")
                 for drive_bay in range(0, len(cfg.disk_drives)):
-                    print "{0:9d}\t{1:13}\t{2:13}".format(
+                    print("{0:9d}\t{1:13}\t{2:13}".format(
                             drive_bay,
                             "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
-                            "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no")
+                            "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no"))
             else:
                 drive_bay = None
                 enabled = True
@@ -462,7 +462,7 @@ class WdHwClient(object):
         
         elif args.command == "temperature":
             pmc_temperature = conn.getPMCTemperature()
-            print "PMC temperature: {0} °C".format(pmc_temperature)
+            print("PMC temperature: {0} °C".format(pmc_temperature))
         
         elif args.command == "shutdown":
             conn.daemonShutdown()
