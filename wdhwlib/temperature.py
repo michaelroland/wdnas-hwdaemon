@@ -94,7 +94,7 @@ class TemperatureReader(object):
         file_name = _CORETEMP_FILENAME_BASE.format(_CORETEMP_CORE_OFFSET + cpu_index,
                                                    value_type)
         try:
-            with open(file_name, "r") as f:
+            with open(file_name, 'rt', encoding='utf_8', errors='replace') as f:
                 raw_value = f.readline()
                 match = _CORETEMP_REGEX_VALUE.match(raw_value)
                 if match is not None:
@@ -112,7 +112,7 @@ class TemperatureReader(object):
             int: The number of CPU cores.
         """
         try:
-            with open(_CPUINFO_FILENAME, "r") as f:
+            with open(_CPUINFO_FILENAME, 'rt', encoding='utf_8', errors='replace') as f:
                 for line in f:
                     match = _CPUINFO_REGEX_CORES.match(line)
                     if match is not None:
@@ -214,7 +214,7 @@ class TemperatureReader(object):
             if not isfile(vendor_id_file):
                 continue
             try:
-                with open(vendor_id_file, "r") as f:
+                with open(vendor_id_file, 'rt', encoding='utf_8', errors='replace') as f:
                     raw_value = f.readline()
                     match = _SMBUS_REGEX_HEXID.match(raw_value)
                     if match is None:
@@ -228,7 +228,7 @@ class TemperatureReader(object):
             if not isfile(device_id_file):
                 continue
             try:
-                with open(device_id_file, "r") as f:
+                with open(device_id_file, 'rt', encoding='utf_8', errors='replace') as f:
                     raw_value = f.readline()
                     match = _SMBUS_REGEX_HEXID.match(raw_value)
                     if match is None:
