@@ -11,11 +11,11 @@ Type=simple
 Environment=
 WorkingDirectory=/usr/local/lib/wdhwd
 StandardOutput=inherit
-ExecStart=/usr/bin/python -m wdhwdaemon.daemon -q
+ExecStart=/usr/bin/python3 -m wdhwdaemon.daemon -q
 Restart=always
 RestartPreventExitStatus=10 11
-#ExecReload=/usr/bin/python -m wdhwdaemon.client -q reload
-ExecStop=/usr/bin/python -m wdhwdaemon.client -q shutdown
+#ExecReload=/usr/bin/python3 -m wdhwdaemon.client -q reload
+ExecStop=/usr/bin/python3 -m wdhwdaemon.client -q shutdown
 
 [Install]
 WantedBy=multi-user.target
