@@ -36,7 +36,7 @@ class BasicSocketClient(object):
         Args:
             client_socket (socket.SocketType): A connected client socket.
         """
-        super(BasicSocketClient, self).__init__()
+        super().__init__()
         self._BYTES_TO_READ = 4096
         self.__send_lock = threading.RLock()
         self.__receive_lock = threading.RLock()
@@ -115,7 +115,7 @@ class ThreadedSocketClient(BasicSocketClient):
         Args:
             client_socket (socket.SocketType): A connected client socket.
         """
-        super(ThreadedSocketClient, self).__init__(client_socket)
+        super().__init__(client_socket)
         self.__lock = threading.RLock()
         self.__running = True
         self.__thread = threading.Thread(target=self.__run)
@@ -159,7 +159,7 @@ class ThreadedSocketClient(BasicSocketClient):
         with self.__lock:
             if self.__running:
                 self.__running = False
-                super(ThreadedSocketClient, self).close()
+                super().close()
                 self.__thread.join()
     
     @property

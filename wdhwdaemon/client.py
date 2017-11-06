@@ -52,7 +52,7 @@ class WdHwConnector(BasicPacketClient):
         """
         socket_factory = UnixSocketFactory(socket_path)
         client_socket = socket_factory.connectSocket()
-        super(WdHwConnector, self).__init__(client_socket, packet_class=ResponsePacket)
+        super().__init__(client_socket, packet_class=ResponsePacket)
     
     def _executeCommand(self, command_code, parameter=None, keep_alive=True, more_flags=0):
         flags = more_flags
@@ -209,7 +209,7 @@ class WdHwClient(object):
     
     def __init__(self):
         """Initializes a new hardware controller client."""
-        super(WdHwClient, self).__init__()
+        super().__init__()
     
     def main(self, argv):
         """Main loop of the hardware controller client.

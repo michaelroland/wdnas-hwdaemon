@@ -179,7 +179,7 @@ class ResponsePacket(CommandPacket):
                 else:
                     self.__error_code = parameter[0]
                     self.__parameter = parameter[1:]
-        super(ResponsePacket, self).__init__(identifier, parameter, flags)
+        super().__init__(identifier, parameter, flags)
     
     @property
     def is_error(self):
@@ -222,7 +222,7 @@ class LEDStatus(object):
         Raises:
             ValueError: If the raw data is not a valid LED status.
         """
-        super(LEDStatus, self).__init__()
+        super().__init__()
         if raw_data is None:
             raw_data = bytearray([0, 0, 0, 0])
         if len(raw_data) != 4:
@@ -340,7 +340,7 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_DRIVE_ENABLED_SET:           self.__commandDriveEnabledSet,
                 CommandPacket.CMD_DRIVE_ENABLED_GET:           self.__commandDriveEnabledGet,
         }
-        super(ServerThreadImpl, self).__init__(listener, CommandPacket)
+        super().__init__(listener, CommandPacket)
     
     def connectionOpened(self, remote_socket, remote_address):
         SO_PEERCRED = getattr(socket, "SO_PEERCRED", 17)
@@ -614,7 +614,7 @@ class WdHwServer(SocketListener):
         self.__hw_daemon = hw_daemon
         socket_factory = UnixSocketFactory(socket_path)
         server_socket = socket_factory.bindSocket(socket_group)
-        super(WdHwServer, self).__init__(server_socket, max_clients, server_thread_class=ServerThreadImpl)
+        super().__init__(server_socket, max_clients, server_thread_class=ServerThreadImpl)
     
     @property
     def hw_daemon(self):

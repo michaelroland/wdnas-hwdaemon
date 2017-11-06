@@ -49,7 +49,7 @@ class SocketServerThread(object):
         Args:
             listener (SocketListener): The parent socket listener instance.
         """
-        super(SocketServerThread, self).__init__()
+        super().__init__()
         self.__thread_id = SocketServerThread.__NEXT_THREAD_ID
         SocketServerThread.__NEXT_THREAD_ID += 1
         self._BYTES_TO_READ = 4096
@@ -232,7 +232,7 @@ class SocketListener(object):
             server_thread_class (Type[SocketServerThread]): A class implementing
                 ``SocketServerThread``.
         """
-        super(SocketListener, self).__init__()
+        super().__init__()
         if not issubclass(server_thread_class, SocketServerThread):
             raise TypeError("'server_thread_class' is not a subclass of SocketServerThread")
         self.__server_thread_class = server_thread_class

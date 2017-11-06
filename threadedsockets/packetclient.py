@@ -41,7 +41,7 @@ class BasicPacketClient(socketclient.BasicSocketClient):
         """
         self.__read_buffer = bytearray()
         self.__packet_class = packet_class
-        super(BasicPacketClient, self).__init__(client_socket)
+        super().__init__(client_socket)
     
     def receivePacket(self):
         """Receive a single protocol packet.
@@ -102,7 +102,7 @@ class ThreadedPacketClient(socketclient.ThreadedSocketClient):
         """
         self.__read_buffer = bytearray()
         self.__packet_class = packet_class
-        super(ThreadedPacketClient, self).__init__(client_socket)
+        super().__init__(client_socket)
     
     def dataReceived(self, data):
         self.__read_buffer.extend(data)

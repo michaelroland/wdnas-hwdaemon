@@ -41,7 +41,7 @@ class Handler(object):
         Args:
             daemonize (bool): Should the associated thread be a daemon thread?
         """
-        super(Handler, self).__init__()
+        super().__init__()
         self.__lock = threading.RLock()
         self.__msg_queue = queue.Queue()
         self.__running = False

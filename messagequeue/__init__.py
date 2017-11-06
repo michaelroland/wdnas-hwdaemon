@@ -39,7 +39,7 @@ class Message(object):
             what (int): The numeric type of the message.
             obj (Any): An optional parameter to be passed along in this message.
         """
-        super(Message, self).__init__()
+        super().__init__()
         self.__what = what
         self.__obj = obj
         

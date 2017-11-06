@@ -52,7 +52,7 @@ class SerialConnectionManager(object):
                 ``BasicSerialDataProcessor`` to use for sending and receiving data
                 on the serial port.
         """
-        super(SerialConnectionManager, self).__init__()
+        super().__init__()
         if not isinstance(serial_port, serial.Serial):
             raise TypeError("'serial_port' is not an instance of serial.Serial")
         if not isinstance(processor, BasicSerialDataProcessor):

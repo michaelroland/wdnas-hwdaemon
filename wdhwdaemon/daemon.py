@@ -64,7 +64,7 @@ class PMCCommandsImpl(PMCCommands):
             hw_daemon (WdHwDaemon): The parent hardware controller daemon.
         """
         self.__hw_daemon = hw_daemon
-        super(PMCCommandsImpl, self).__init__()
+        super().__init__()
     
     def interruptReceived(self):
         isr = self.getInterruptStatus()
@@ -100,7 +100,7 @@ class FanControllerImpl(FanController):
             num_dimms (int): The number of memory DIMMs to monitor.
         """
         self.__hw_daemon = hw_daemon
-        super(FanControllerImpl, self).__init__(pmc, temperature_reader, disk_drives, num_dimms)
+        super().__init__(pmc, temperature_reader, disk_drives, num_dimms)
     
     def controllerStarted(self):
         _logger.debug("%s: Fan controller started",
@@ -181,7 +181,7 @@ class ConfigFile(object):
             config_file (str): The configuration file to load into this configuration
                 holder.
         """
-        super(ConfigFile, self).__init__()
+        super().__init__()
         self.__file = config_file
         self.__cfg = configparser.RawConfigParser()
         try:
@@ -300,7 +300,7 @@ class WdHwDaemon(object):
     
     def __init__(self):
         """Initializes a new hardware controller daemon."""
-        super(WdHwDaemon, self).__init__()
+        super().__init__()
         self.__lock = threading.RLock()
         self.__running = False
         self.__cfg = None

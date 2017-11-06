@@ -182,7 +182,7 @@ class PMCInterruptHandler(Handler):
             interrupt_callback (PMCInterruptCallback): The associated callback
                 implementation that consumes interrupts.
         """
-        super(PMCInterruptHandler, self).__init__(True)
+        super().__init__(True)
         self.__callback = interrupt_callback
     
     def handleMessage(self, msg):
@@ -193,7 +193,7 @@ class PMCInterruptHandler(Handler):
         elif msg.what == PMCInterruptHandler.MSG_CONNECTION_CLOSED:
             self.__callback.connectionClosed(msg.obj)
         else:
-            super(PMCInterruptHandler, self).handleMessage(msg)
+            super().handleMessage(msg)
 
 
 class PMCProcessor(TerminatedPacketProcessor):
@@ -202,8 +202,8 @@ class PMCProcessor(TerminatedPacketProcessor):
     
     def __init__(self, interrupt_handler):
         """Initializes a new WD PMC protocol frame processor."""
-        super(PMCProcessor, self).__init__(terminator = _PMC_LINE_TERMINATOR,
-                                           strip = _PMC_LINE_STRIP_BYTES)
+        super().__init__(terminator = _PMC_LINE_TERMINATOR,
+                         strip = _PMC_LINE_STRIP_BYTES)
         self.__interrupt_handler = interrupt_handler
         self.__response = None
         self.__response_pending = False
@@ -212,10 +212,10 @@ class PMCProcessor(TerminatedPacketProcessor):
     
     def connectionOpened(self, serial_connection_manager):
         self.__interrupt_handler.start()
-        super(PMCProcessor, self).connectionOpened(serial_connection_manager)
+        super().connectionOpened(serial_connection_manager)
     
     def connectionClosed(self, error):
-        super(PMCProcessor, self).connectionClosed(error)
+        super().connectionClosed(error)
         self.__interrupt_handler.sendMessage(
             Message(PMCInterruptHandler.MSG_CONNECTION_CLOSED, error))
         self.__interrupt_handler.join()
@@ -363,7 +363,7 @@ class PMCCommands(PMCInterruptCallback):
     
     def __init__(self):
         """Initializes a new instance of the PMC high-level interface."""
-        super(PMCCommands, self).__init__()
+        super().__init__()
     
     def connect(self, port_name=PMC_UART_PORT_DEFAULT):
         """Connect to the PMC chip.

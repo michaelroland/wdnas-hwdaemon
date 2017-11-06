@@ -46,7 +46,7 @@ class BerTlv(object):
             ValueError: If the tag is not a valid BER TLV tag or if the data field
                 exceeds the maximum supported size.
         """
-        super(BerTlv, self).__init__()
+        super().__init__()
         tag_length = 0
         tag_bytes = bytearray()
         if tag <= 0:

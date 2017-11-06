@@ -60,7 +60,7 @@ class BasicPacket(object):
         Raises:
             InvalidPacketError: If the parameter is too large to fit into the packet.
         """
-        super(BasicPacket, self).__init__()
+        super().__init__()
         self.__identifier = identifier
         if parameter is not None:
             length = len(parameter)

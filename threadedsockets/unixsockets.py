@@ -37,7 +37,7 @@ class UnixSocketFactory(object):
         Args:
             socket_path (str): File path of the named UNIX domain socket.
         """
-        super(UnixSocketFactory, self).__init__()
+        super().__init__()
         self.__socket_path = socket_path
         (dir_name, file_name) = os.path.split(socket_path)
         self.__socket_dir = dir_name

@@ -65,7 +65,7 @@ class TemperatureReader(object):
     
     def __init__(self):
         """Initializes a new instance of the temperature reader."""
-        super(TemperatureReader, self).__init__()
+        super().__init__()
     
     def connect(self):
         """Connect the temperature reader.

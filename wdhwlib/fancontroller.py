@@ -107,7 +107,7 @@ class ThermalConditionMonitor(object):
             conditions (List[Condition]): An array of conditions to be checked
                 (the list is checked in order of precedence).
         """
-        super(ThermalConditionMonitor, self).__init__()
+        super().__init__()
         self.__wait = threading.Condition()
         self.__lock = threading.RLock()
         self.__running = False
@@ -251,7 +251,7 @@ class SystemTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(pmc, PMCCommands):
             raise TypeError("'pmc' is not an instance of PMCCommands")
-        super(SystemTemperatureMonitor, self).__init__(
+        super().__init__(
             30,
             5.0,
             [
@@ -294,7 +294,7 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
-        super(MemoryTemperatureMonitor, self).__init__(
+        super().__init__(
             30,
             5.0,
             [
@@ -334,7 +334,7 @@ class CPUTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
-        super(CPUTemperatureMonitor, self).__init__(
+        super().__init__(
             10,
             5.0,
             [
@@ -373,7 +373,7 @@ class CPUDeltaTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
-        super(CPUDeltaTemperatureMonitor, self).__init__(
+        super().__init__(
             10,
             5.0,
             [
@@ -420,7 +420,7 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
         """
         if not isinstance(temperature_reader, TemperatureReader):
             raise TypeError("'temperature_reader' is not an instance of TemperatureReader")
-        super(HardDiskDriveTemperatureMonitor, self).__init__(
+        super().__init__(
             600,
             5.0,
             [
@@ -531,7 +531,7 @@ class FanControllerCallbackHandler(Handler):
             interrupt_callback (FanControllerCallback): The associated callback
                 implementation that consumes status updates.
         """
-        super(FanControllerCallbackHandler, self).__init__(True)
+        super().__init__(True)
         self.__callback = status_callback
     
     def handleMessage(self, msg):
@@ -550,7 +550,7 @@ class FanControllerCallbackHandler(Handler):
         elif msg.what == FanControllerCallbackHandler.MSG_LEVEL_CHANGED:
             self.__callback.levelChanged(msg.obj[0], msg.obj[1])
         else:
-            super(FanControllerCallbackHandler, self).handleMessage(msg)
+            super().handleMessage(msg)
 
 
 class FanController(FanControllerCallback):
@@ -584,7 +584,7 @@ class FanController(FanControllerCallback):
             disk_drives (List(str)): A list of HDD device names to monitor.
             num_dimms (int): The number of memory DIMMs to monitor.
         """
-        super(FanController, self).__init__()
+        super().__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
         self.__wait = threading.Condition()
         self.__lock = threading.RLock()

@@ -35,7 +35,7 @@ class BasicSerialDataProcessor(object):
     
     def __init__(self):
         """Initializes a new serial data processor."""
-        super(BasicSerialDataProcessor, self).__init__()
+        super().__init__()
         self.__manager = None
         self.__manager_ready_condition = threading.Condition()
     
@@ -94,7 +94,7 @@ class AbstractPacketProcessor(BasicSerialDataProcessor):
     
     def __init__(self):
         """Initializes a new packet processor."""
-        super(AbstractPacketProcessor, self).__init__()
+        super().__init__()
     
     def dataReceived(self, data):
         raise NotImplementedError("Implementations must override dataReceived")
@@ -132,14 +132,14 @@ class PacketHandler(Handler):
         """
         if not isinstance(packet_processor, AbstractPacketProcessor):
             raise TypeError("'packet_processor' is not an instance of AbstractPacketProcessor")
-        super(PacketHandler, self).__init__(True)
+        super().__init__(True)
         self.__packet_processor = packet_processor
     
     def handleMessage(self, msg):
         if msg.what == PacketHandler.MSG_PACKET_RECEIVED:
             self.__packet_processor.packetReceived(msg.obj)
         else:
-            super(PacketHandler, self).handleMessage(msg)
+            super().handleMessage(msg)
 
 
 class TerminatedPacketProcessor(AbstractPacketProcessor):
@@ -155,7 +155,7 @@ class TerminatedPacketProcessor(AbstractPacketProcessor):
             strip (bytearray): An optional array of bytes to strip from the
                 beginning and the end of each packet.
         """
-        super(TerminatedPacketProcessor, self).__init__()
+        super().__init__()
         self.__read_buffer = bytearray()
         self.__terminator = bytearray(terminator)
         self.__strip_bytes = bytearray(strip)
@@ -163,10 +163,10 @@ class TerminatedPacketProcessor(AbstractPacketProcessor):
     
     def connectionOpened(self, serial_connection_manager):
         self.__packet_handler.start()
-        super(TerminatedPacketProcessor, self).connectionOpened(serial_connection_manager)
+        super().connectionOpened(serial_connection_manager)
     
     def connectionClosed(self, error):
-        super(TerminatedPacketProcessor, self).connectionClosed(error)
+        super().connectionClosed(error)
         self.__packet_handler.join()
     
     def dataReceived(self, data):

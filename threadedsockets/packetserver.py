@@ -41,7 +41,7 @@ class PacketServerThread(socketserver.SocketServerThread):
         """
         self.__read_buffer = bytearray()
         self.__packet_class = packet_class
-        super(PacketServerThread, self).__init__(listener)
+        super().__init__(listener)
     
     def connectionOpened(self, remote_socket, remote_address):
         raise SocketSecurityException("The default implementation refuses all connections.")
