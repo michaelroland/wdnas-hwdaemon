@@ -194,8 +194,8 @@ class ConfigFile(object):
         except ConfigFileError:
             raise
         except Exception as e:
-            raise ConfigFileError("{0} while parsing configuration file '{2}': {1}".format(
-                    type(e).__name__, e, config_file))
+            raise ConfigFileError("{0} while parsing configuration file '{1}'".format(
+                    type(e).__name__, config_file)) from e
         SECTION = "wdhwd"
         self.declareOption(SECTION, "user", default=wdhwdaemon.WDHWD_USER_DEFAULT)
         self.declareOption(SECTION, "group", default=None)
@@ -231,10 +231,11 @@ class ConfigFile(object):
             setattr(self, attribute_name, option_value)
         except ValueError as e:
             raise ConfigFileError("Invalid value for option {2}"
-                                  " (in section {1} of {0}): {3}".format(self.__file,
-                                                                         option_section,
-                                                                         option_name,
-                                                                         e))
+                                  " (in section {1} of {0}): {3}".format(
+                                          self.__file,
+                                          option_section,
+                                          option_name,
+                                          type(e).__name__)) from e
     
     @staticmethod
     def parseBoolean(value):
@@ -283,7 +284,7 @@ class ConfigFile(object):
                 result.append(parser(element, **parser_args))
             return result
         except ValueError as e:
-            raise ValueError("'{0}' is not a valid array value: {1}".format(value, e))
+            raise ValueError("'{0}' is not a valid array value".format(value)) from e
 
 
 class WdHwDaemon(object):
