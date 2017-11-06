@@ -374,14 +374,14 @@ class ServerThreadImpl(PacketServerThread):
                 raise CloseConnectionWarning("End of transmission")
     
     def __commandVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(wdhwdaemon.WDHWD_PROTOCOL_VERSION.encode('utf_8', 'ignore')))
+        self.sendPacket(packet.createResponse(wdhwdaemon.WDHWD_PROTOCOL_VERSION.encode('utf-8', 'ignore')))
     
     def __commandDaemonShutdown(self, packet):
         self.sendPacket(packet.createResponse(mirror_keep_alive=False))
         self.__hw_daemon.shutdown()
     
     def __commandPMCVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(self.__hw_daemon.pmc_version.encode('utf_8', 'ignore')))
+        self.sendPacket(packet.createResponse(self.__hw_daemon.pmc_version.encode('utf-8', 'ignore')))
     
     def __commandPMCStatusGet(self, packet):
         try:
@@ -525,7 +525,7 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
             self.__hw_daemon.pmc.setLCDText(packet.parameter[0],
-                                            packet.parameter[1:].decode('us-ascii', 'ignore'))
+                                            packet.parameter[1:].decode('ascii', 'ignore'))
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:

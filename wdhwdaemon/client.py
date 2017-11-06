@@ -85,14 +85,14 @@ class WdHwConnector(BasicPacketClient):
     
     def getVersion(self):
         response = self._executeCommand(CommandPacket.CMD_VERSION_GET)
-        return response.decode('utf_8', 'ignore')
+        return response.decode('utf-8', 'ignore')
     
     def daemonShutdown(self):
         response = self._executeCommand(CommandPacket.CMD_DAEMON_SHUTDOWN)
     
     def getPMCVersion(self):
         response = self._executeCommand(CommandPacket.CMD_PMC_VERSION_GET)
-        return response.decode('utf_8', 'ignore')
+        return response.decode('utf-8', 'ignore')
     
     def getPMCStatus(self):
         response = self._executeCommand(CommandPacket.CMD_PMC_STATUS_GET)
@@ -148,7 +148,7 @@ class WdHwConnector(BasicPacketClient):
     
     def setLCDText(self, line, text):
         parameter = bytearray([line])
-        parameter.extend(text.encode('us-ascii', 'ignore'))
+        parameter.extend(text.encode('ascii', 'ignore'))
         response = self._executeCommand(CommandPacket.CMD_LCD_TEXT_SET,
                                         parameter=parameter)
     

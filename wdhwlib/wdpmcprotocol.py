@@ -44,7 +44,7 @@ _PMC_UART_STOPBITS = serial.STOPBITS_ONE
 # PMC serial protocol transmission line coding
 _PMC_LINE_TERMINATOR = b'\r'
 _PMC_LINE_STRIP_BYTES = b' \n\t'
-_PMC_LINE_ENCODING = "us-ascii"
+_PMC_LINE_ENCODING = "ascii"
 
 # PMC serial protocol responses
 _PMC_RESPONSE_TIMEOUT = 5.0
