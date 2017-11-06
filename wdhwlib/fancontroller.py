@@ -276,7 +276,7 @@ class SystemTemperatureMonitor(ThermalConditionMonitor):
             temperature = self.__pmc.getTemperature()
             if temperature is not None:
                 return float(temperature)
-        except:
+        except Exception:
             pass
         return None
 
@@ -318,7 +318,7 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
         """
         try:
             return self.__reader.getMemoryTemperature(self.__dimm_index)
-        except:
+        except Exception:
             return None
 
 
@@ -357,7 +357,7 @@ class CPUTemperatureMonitor(ThermalConditionMonitor):
                 elif temperature < core_temperature:
                     temperature = core_temperature
             return temperature
-        except:
+        except Exception:
             return None
 
 
@@ -403,7 +403,7 @@ class CPUDeltaTemperatureMonitor(ThermalConditionMonitor):
                 elif temperature > core_temperature:
                     temperature = core_temperature
             return temperature
-        except:
+        except Exception:
             return None
 
 
@@ -446,7 +446,7 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
         """
         try:
             return self.__reader.getHDTemperature(self.__drive)
-        except:
+        except Exception:
             return None
 
 
@@ -622,7 +622,7 @@ class FanController(FanControllerCallback):
                     try:
                         fan_speed = self.__pmc.getFanSpeed()
                         fan_rpm = self.__pmc.getFanRPM()
-                    except:
+                    except Exception:
                         # PMC or fan error
                         fan_speed = FanController.FAN_MAX
                         fan_speed_change = True
@@ -662,7 +662,7 @@ class FanController(FanControllerCallback):
                                      fan_speed)
                         try:
                             self.__pmc.setFanSpeed(fan_speed)
-                        except:
+                        except Exception:
                             # PMC or fan error
                             self.__status_handler.sendMessage(
                                 Message(FanControllerCallbackHandler.MSG_FAN_ERROR))

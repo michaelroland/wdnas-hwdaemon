@@ -548,7 +548,7 @@ class WdHwDaemon(object):
                     user_info = pwd.getpwnam(user)
                 if user_info is not None:
                     return (user_info.pw_name, user_info.pw_uid, user_info.pw_gid)
-            except:
+            except Exception:
                 pass
         return None
     
@@ -571,7 +571,7 @@ class WdHwDaemon(object):
                     group_info = grp.getgrnam(group)
                 if group_info is not None:
                     return group_info.gr_gid
-            except:
+            except Exception:
                 pass
         return None
     
@@ -604,7 +604,7 @@ class WdHwDaemon(object):
             try:
                 stat_info = os.stat(filename)
                 file_access_gids.append(stat_info.st_gid)
-            except:
+            except Exception:
                 pass
         return file_access_gids
     
@@ -735,7 +735,7 @@ class WdHwDaemon(object):
             serr = None
             try:
                 serr = os.strerror(e.errno)
-            except:
+            except Exception:
                 pass
             _logger.error("%s: Failed to drop supplementary groups: %d (%s)",
                           type(self).__name__, e.errno, str(serr))
@@ -747,7 +747,7 @@ class WdHwDaemon(object):
             serr = None
             try:
                 serr = os.strerror(e.errno)
-            except:
+            except Exception:
                 pass
             _logger.error("%s: Failed to set real/effective group ID to '%d': %d (%s)",
                           type(self).__name__,
@@ -759,7 +759,7 @@ class WdHwDaemon(object):
             serr = None
             try:
                 serr = os.strerror(e.errno)
-            except:
+            except Exception:
                 pass
             _logger.error("%s: Failed to set real/effective user ID to '%d': %d (%s)",
                           type(self).__name__,

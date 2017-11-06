@@ -273,7 +273,7 @@ class TemperatureReader(object):
             finally:
                 try:
                     sb.close()
-                except:
+                except Exception:
                     pass
         return None
     

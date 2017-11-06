@@ -386,7 +386,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandPMCStatusGet(self, packet):
         try:
             status = self.__hw_daemon.pmc.getStatus()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([status])))
@@ -396,7 +396,7 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
             self.__hw_daemon.pmc.setConfiguration(packet.parameter[0])
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
@@ -404,7 +404,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandPMCConfigurationGet(self, packet):
         try:
             cfg = self.__hw_daemon.pmc.getConfiguration()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([cfg])))
@@ -412,7 +412,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandPMCDLBGet(self, packet):
         try:
             dlb = self.__hw_daemon.pmc.getDLB()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([dlb])))
@@ -448,7 +448,7 @@ class ServerThreadImpl(PacketServerThread):
                     self.__hw_daemon.pmc.setLEDStatus(status)
                 if ledStatus.mask_pulse and ledStatus.blue_pulse:
                     self.__hw_daemon.pmc.setPowerLEDPulse(True)
-            except:
+            except Exception:
                 self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
             else:
                 self.sendPacket(packet.createResponse())
@@ -458,7 +458,7 @@ class ServerThreadImpl(PacketServerThread):
             status = self.__hw_daemon.pmc.getLEDStatus()
             blink = self.__hw_daemon.pmc.getLEDBlink()
             pulse = self.__hw_daemon.pmc.getPowerLEDPulse()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             ledStatus = LEDStatus.fromPowerLED(status, blink, pulse)
@@ -487,7 +487,7 @@ class ServerThreadImpl(PacketServerThread):
                     if ledStatus.red_const:
                         status |= wdpmcprotocol.PMC_LED_USB_RED
                     self.__hw_daemon.pmc.setLEDStatus(status)
-            except:
+            except Exception:
                 self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
             else:
                 self.sendPacket(packet.createResponse())
@@ -496,7 +496,7 @@ class ServerThreadImpl(PacketServerThread):
         try:
             status = self.__hw_daemon.pmc.getLEDStatus()
             blink = self.__hw_daemon.pmc.getLEDBlink()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             ledStatus = LEDStatus.fromUSBLED(status, blink)
@@ -507,7 +507,7 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
             self.__hw_daemon.pmc.setLCDBacklightIntensity(packet.parameter[0])
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
@@ -515,7 +515,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandLCDBacklightIntensityGet(self, packet):
         try:
             intensity = self.__hw_daemon.pmc.getLCDBacklightIntensity()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([intensity])))
@@ -526,7 +526,7 @@ class ServerThreadImpl(PacketServerThread):
         try:
             self.__hw_daemon.pmc.setLCDText(packet.parameter[0],
                                             packet.parameter[1:].decode('us-ascii', 'ignore'))
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
@@ -534,7 +534,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandPMCTemperatureGet(self, packet):
         try:
             temp = self.__hw_daemon.pmc.getTemperature()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([(temp >> 8) & 0x0FF, temp & 0x0FF])))
@@ -542,7 +542,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandFanRPMGet(self, packet):
         try:
             rpm = self.__hw_daemon.pmc.getFanRPM()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([(rpm >> 8) & 0x0FF, rpm & 0x0FF])))
@@ -552,7 +552,7 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
             self.__hw_daemon.pmc.setFanSpeed(packet.parameter[0])
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
@@ -560,7 +560,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandFanSpeedGet(self, packet):
         try:
             speed = self.__hw_daemon.pmc.getFanSpeed()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([speed])))
@@ -568,7 +568,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandDrivePresentGet(self, packet):
         try:
             mask = self.__hw_daemon.pmc.getDrivePresenceMask()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([mask])))
@@ -580,7 +580,7 @@ class ServerThreadImpl(PacketServerThread):
             bay_number = packet.parameter[0]
             enable = packet.parameter[1] != 0
             mask = self.__hw_daemon.pmc.setDriveEnabled(bay_number, enable)
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse())
@@ -588,7 +588,7 @@ class ServerThreadImpl(PacketServerThread):
     def __commandDriveEnabledGet(self, packet):
         try:
             mask = self.__hw_daemon.pmc.getDriveEnabledMask()
-        except:
+        except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([mask])))
