@@ -42,9 +42,10 @@ _PMC_UART_PARITY = serial.PARITY_NONE
 _PMC_UART_STOPBITS = serial.STOPBITS_ONE
 
 # PMC serial protocol transmission line coding
+_PMC_LINE_ENCODING = "ascii"
 _PMC_LINE_TERMINATOR = b'\r'
 _PMC_LINE_STRIP_BYTES = b' \n\t'
-_PMC_LINE_ENCODING = "ascii"
+_PMC_LINE_STRIP_CHARS = str(_PMC_LINE_STRIP_BYTES, _PMC_LINE_ENCODING)
 
 # PMC serial protocol responses
 _PMC_RESPONSE_TIMEOUT = 5.0
@@ -276,9 +277,9 @@ class PMCProcessor(TerminatedPacketProcessor):
                       type(self).__name__,
                       response)
         (response_code, separator, response_value) = response.partition("=")
-        response_code = response_code.strip(_PMC_LINE_STRIP_BYTES).upper()
+        response_code = response_code.strip(_PMC_LINE_STRIP_CHARS).upper()
         if len(separator) > 0:
-            response_value = response_value.strip(_PMC_LINE_STRIP_BYTES)
+            response_value = response_value.strip(_PMC_LINE_STRIP_CHARS)
         else:
             response_value = None
         return (response_code, response_value)
