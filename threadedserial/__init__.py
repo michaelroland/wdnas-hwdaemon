@@ -72,9 +72,9 @@ class SerialConnectionManager(object):
         """Runnable target of the reader thread."""
         self.__processor.connectionOpened(self)
         error = None
-        while self.__running and self.__serial_port.isOpen():
+        while self.__running and self.__serial_port.is_open:
             try:
-                bytes_to_read = self.__serial_port.inWaiting()
+                bytes_to_read = self.__serial_port.in_waiting
                 if bytes_to_read <= 0:
                     bytes_to_read = 1
                 data = self.__serial_port.read(bytes_to_read)
@@ -94,7 +94,7 @@ class SerialConnectionManager(object):
                 
         
         self.__running = False
-        if self.__serial_port.isOpen():
+        if self.__serial_port.is_open:
             self.__serial_port.close()
         self.__processor.connectionClosed(error)
     
@@ -113,7 +113,7 @@ class SerialConnectionManager(object):
                 flushed immediately after writing the data.
         """
         with self.__lock:
-            if self.__running and self.__serial_port.isOpen():
+            if self.__running and self.__serial_port.is_open:
                 if data is not None: self.__serial_port.write(data)
                 if flush: self.__serial_port.flush()
     
@@ -137,7 +137,7 @@ class SerialConnectionManager(object):
     def is_open(self):
         """bool: Is the associated serial port open?"""
         with self.__lock:
-            return self.__serial_port.isOpen()
+            return self.__serial_port.is_open
 
 
 if __name__ == "__main__":
