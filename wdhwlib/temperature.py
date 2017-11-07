@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import os
-from os.path import isdir,isfile,join
+import os.path
 import re
 import smbus
 import subprocess
@@ -206,12 +206,12 @@ class TemperatureReader(object):
             smbus.SMBus: The SMBus device object.
         """
         for device in os.listdir(_SMBUS_DEVICES_PATH):
-            device_abs = join(_SMBUS_DEVICES_PATH, device)
-            if not isdir(device_abs):
+            device_abs = os.path.join(_SMBUS_DEVICES_PATH, device)
+            if not os.path.isdir(device_abs):
                 continue
             
-            vendor_id_file = join(device_abs, _SMBUS_VENDORID_FILE)
-            if not isfile(vendor_id_file):
+            vendor_id_file = os.path.join(device_abs, _SMBUS_VENDORID_FILE)
+            if not os.path.isfile(vendor_id_file):
                 continue
             try:
                 with open(vendor_id_file, 'rt', encoding='utf-8', errors='replace') as f:
@@ -224,8 +224,8 @@ class TemperatureReader(object):
             except IOError as e:
                 continue
             
-            device_id_file = join(device_abs, _SMBUS_DEVICEID_FILE)
-            if not isfile(device_id_file):
+            device_id_file = os.path.join(device_abs, _SMBUS_DEVICEID_FILE)
+            if not os.path.isfile(device_id_file):
                 continue
             try:
                 with open(device_id_file, 'rt', encoding='utf-8', errors='replace') as f:
