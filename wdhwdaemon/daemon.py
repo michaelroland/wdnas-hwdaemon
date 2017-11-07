@@ -112,6 +112,8 @@ class FanControllerImpl(FanController):
                       type(self).__name__)
         self.__hw_daemon.setFanBootState()
         self.__hw_daemon.setLEDWarningState()
+        if self.__hw_daemon.is_running:
+            self.__hw_daemon.shutdown()
     
     def fanError(self):
         _logger.error("%s: Fan error detected",
