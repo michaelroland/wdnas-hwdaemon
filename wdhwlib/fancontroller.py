@@ -613,8 +613,9 @@ class FanController(FanControllerCallback):
                     global_level = FanController.LEVEL_UNDER
                     for monitor in self.__monitors:
                         level = monitor.level
-                        if global_level < level:
-                            global_level = level
+                        if level is not None:
+                            if global_level < level:
+                                global_level = level
                     
                     fan_speed_change = False
                     fan_speed = 0
