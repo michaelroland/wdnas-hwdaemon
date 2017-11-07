@@ -50,7 +50,7 @@ class BasicSerialDataProcessor(object):
             raise TypeError("'serial_connection_manager' is not an instance of SerialConnectionManager")
         with self.__manager_ready_condition:
             self.__manager = serial_connection_manager
-            self.__manager_ready_condition.notifyAll()
+            self.__manager_ready_condition.notify_all()
     
     def connectionClosed(self, error):
         """Callback invoked when the underlying serial connection is closed.

@@ -236,7 +236,7 @@ class PMCProcessor(TerminatedPacketProcessor):
                 # command response received
                 self.__response = response
                 self.__response_pending = False
-                self.__response_condition.notifyAll()
+                self.__response_condition.notify_all()
             else:
                 # unexpected packet received (this is probably the response to
                 # a command that timed out)

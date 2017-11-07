@@ -216,7 +216,7 @@ class ThermalConditionMonitor(object):
                 self.__running = False
                 thread = self.__thread
                 self.__thread = None
-                self.__wait.notifyAll()
+                self.__wait.notify_all()
         if thread is not None:
             thread.join()
     
@@ -729,7 +729,7 @@ class FanController(FanControllerCallback):
                 self.__running = False
                 thread = self.__thread
                 self.__thread = None
-                self.__wait.notifyAll()
+                self.__wait.notify_all()
         if thread is not None:
             thread.join()
     
