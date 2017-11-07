@@ -258,7 +258,7 @@ class SocketListener(object):
     
     def __runListener(self):
         """Runnable target of the listening server thread."""
-        self.__socket.listen(1)
+        self.__socket.listen()
         
         try:
             while self.__running:
