@@ -152,6 +152,8 @@ class ConfigFile(object):
     """Hardware controller daemon configuration holder.
     
     Attributes:
+        user (str): User name or ID to drop privileges to during normal operation.
+        group (str): Group name or ID to drop privileges to during normal operation.
         pmc_port (str): Name of the serial port that the PMC is attached to.
         pmc_test_mode (bool): Enable PMC protocol testing mode?
         disk_drives (List(str)): List of disk drives in the drive bays (in the order of
@@ -159,21 +161,27 @@ class ConfigFile(object):
         memory_dimms_count (int): Number of memory DIMMs to monitor.
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
-        socket_group_name (str): Group that is granted access to the UNIX domain socket.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
             to the UNIX domain socket.
         log_file (str): The log file name; may be ``None`` to disable file-based logging.
         log_level (int): The log verbosity level for logging to the log file.
+        system_up_command (str): The command to execute when the daemon starts.
+        system_down_command (str): The command to execute when the daemon exits.
         drive_presence_changed_command (str): The command to execute when the drive bay
             presence status changed.
         drive_presence_changed_args (List(str)): A list of arguments passed to the
             command ``drive_presence_changed_command`` (the placeholders "{drive_bay}",
-            "{drive_name}",  and "{status}" are may be used).
+            "{drive_name}",  and "{status}" may be used).
         power_supply_changed_command (str): The command to execute when the power supply
             power-up status changed.
         power_supply_changed_args (List(str)): A list of arguments passed to the
             command ``power_supply_changed_command`` (the placeholders "{socket}" and
             "{status}" may be used).
+        temperature_changed_command (str): The command to execute when the temperature
+            level changed.
+        temperature_changed_args (List(str)): A list of arguments passed to the
+            command ``temperature_changed_command`` (the placeholders "{new_level}" and
+            "{old_level}" may be used).
     """
     
     def __init__(self, config_file):
