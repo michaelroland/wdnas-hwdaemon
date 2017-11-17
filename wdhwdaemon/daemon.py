@@ -793,8 +793,8 @@ class WdHwDaemon(object):
                           type(self).__name__,
                           cfg.pmc_port)
             pmc = PMCCommandsImpl(self)
-            pmc.connect(cfg.pmc_port)
             self.__pmc = pmc
+            pmc.connect(cfg.pmc_port)
             
             pmc_version = pmc.getVersion()
             self.__pmc_version = pmc_version
@@ -829,8 +829,8 @@ class WdHwDaemon(object):
             _logger.debug("%s: Starting temperature reader",
                           type(self).__name__)
             temperature_reader = TemperatureReader()
-            temperature_reader.connect()
             self.__temperature_reader = temperature_reader
+            temperature_reader.connect()
             
             num_cpus = temperature_reader.getNumCPUCores()
             _logger.info("%s: Discovered %d CPU cores",
@@ -845,8 +845,8 @@ class WdHwDaemon(object):
                                                temperature_reader,
                                                cfg.disk_drives,
                                                cfg.memory_dimms_count)
-            fan_controller.start()
             self.__fan_controller = fan_controller
+            fan_controller.start()
             
             _logger.debug("%s: Starting controller socket server at %s (group = %d, max-clients = %d)",
                           type(self).__name__,
