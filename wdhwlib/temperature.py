@@ -26,6 +26,7 @@ import os.path
 import re
 import smbus
 import subprocess
+import threading
 
 
 _logger = logging.getLogger(__name__)
@@ -66,20 +67,30 @@ class TemperatureReader(object):
     def __init__(self):
         """Initializes a new instance of the temperature reader."""
         super().__init__()
+        self.__lock = threading.RLock()
+        self.__running = False
     
     def connect(self):
         """Connect the temperature reader.
-        
-        This method does nothing.
         """
-        pass
+        with self.__lock:
+            if not self.__running:
+                self.__running = True
+            else:
+                raise RuntimeError('connect called when temperature reader was already connected')
     
     def close(self):
         """Close the temperature reader.
-        
-        This method does nothing.
         """
-        pass
+        with self.__lock:
+            if self.__running:
+                self.__running = False
+    
+    @property
+    def is_running(self):
+        """bool: Is the temperature reader connected?"""
+        with self.__lock:
+            return self.__running
     
     def __readCoreTempValue(self, cpu_index, value_type):
         """Get the contents of a coretemp file.

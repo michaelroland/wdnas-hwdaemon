@@ -365,6 +365,8 @@ class PMCCommands(PMCInterruptCallback):
     def __init__(self):
         """Initializes a new instance of the PMC high-level interface."""
         super().__init__()
+        self.__lock = threading.RLock()
+        self.__running = False
     
     def connect(self, port_name=PMC_UART_PORT_DEFAULT):
         """Connect to the PMC chip.
@@ -372,24 +374,38 @@ class PMCCommands(PMCInterruptCallback):
         Args:
             port_name (str): The name of the serial port that the PMC is attached to.
         """
-        serial_port = serial.Serial(port = port_name,
-                                    baudrate = _PMC_UART_BAUDRATE,
-                                    bytesize = _PMC_UART_DATABITS,
-                                    parity = _PMC_UART_PARITY,
-                                    stopbits = _PMC_UART_STOPBITS)
-        self.__processor = PMCProcessor(PMCInterruptHandler(self))
-        self.__conn_manager = SerialConnectionManager(
-                serial_port,
-                self.__processor)
+        with self.__lock:
+            if not self.__running:
+                serial_port = serial.Serial(port = port_name,
+                                            baudrate = _PMC_UART_BAUDRATE,
+                                            bytesize = _PMC_UART_DATABITS,
+                                            parity = _PMC_UART_PARITY,
+                                            stopbits = _PMC_UART_STOPBITS)
+                self.__processor = PMCProcessor(PMCInterruptHandler(self))
+                self.__conn_manager = SerialConnectionManager(
+                        serial_port,
+                        self.__processor)
+                self.__running = True
+            else:
+                raise RuntimeError('connect called when PMC interface was already connected')
     
     def close(self):
         """Close the connection to the PMC chip.
         
         This method blocks until cleanup completed.
         """
-        self.__conn_manager.close()
-        self.__processor = None
-        self.__conn_manager = None
+        with self.__lock:
+            if self.__running:
+                self.__running = False
+                self.__conn_manager.close()
+                self.__processor = None
+                self.__conn_manager = None
+    
+    @property
+    def is_running(self):
+        """bool: Is the PMC interface connected?"""
+        with self.__lock:
+            return self.__running
     
     def getVersion(self):
         """Get the PMC version information.
