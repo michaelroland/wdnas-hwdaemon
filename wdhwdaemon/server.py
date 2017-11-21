@@ -358,7 +358,7 @@ class ServerThreadImpl(PacketServerThread):
     def connectionClosed(self, error):
         if error is not None:
             if not isinstance(error, threadedsockets.SocketConnectionBrokenError):
-                raise
+                raise error
     
     def packetReceived(self, packet):
         cmd_code = packet.identifier
