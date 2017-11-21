@@ -37,7 +37,7 @@ import wdhwdaemon
 _logger = logging.getLogger(__name__)
 
 
-WDHWD_EXIT_SUCCESS = 0
+WDHWC_EXIT_SUCCESS = 0
 
 
 class WdHwConnector(BasicPacketClient):
@@ -197,10 +197,6 @@ class WdHwConnector(BasicPacketClient):
             return response[0]
         else:
             raise ValueError("Invalid response format")
-
-
-WDHWC_COMMAND_DESCRIPTION = """
-"""
 
 
 class WdHwClient(object):
@@ -469,7 +465,7 @@ class WdHwClient(object):
         
         conn.close()
         
-        return WDHWD_EXIT_SUCCESS
+        return WDHWC_EXIT_SUCCESS
 
 
 if __name__ == "__main__":
