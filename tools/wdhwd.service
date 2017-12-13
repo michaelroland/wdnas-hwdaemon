@@ -16,6 +16,7 @@ Restart=always
 RestartPreventExitStatus=10 11
 #ExecReload=/usr/bin/python3 -m wdhwdaemon.client -q reload
 ExecStop=/usr/bin/python3 -m wdhwdaemon.client -q shutdown
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target
