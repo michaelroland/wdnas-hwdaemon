@@ -600,7 +600,7 @@ class WdHwDaemon(object):
         supplementary_gids = []
         for group in grp.getgrall():
             if username in group.gr_mem:
-                supplementary_gids.append(g.gr_gid)
+                supplementary_gids.append(group.gr_gid)
         return supplementary_gids
     
     def _resolveFileAccessGroups(self, filenames):
