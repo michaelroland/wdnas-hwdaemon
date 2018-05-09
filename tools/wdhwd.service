@@ -5,13 +5,18 @@ Description=WD Hardware Controller Daemon
 
 [Service]
 Type=simple
-#User=wdhwd
-#Group=wdhwd
-#SupplementaryGroups=i2c dialout
+User=wdhwd
+Group=wdhwd
+SupplementaryGroups=i2c dialout
 Environment=
 WorkingDirectory=/usr/local/lib/wdhwd
 StandardOutput=inherit
+
 ExecStart=/usr/bin/python3 -m wdhwdaemon.daemon -q
+ExecStartPre=/bin/mkdir -p /run/wdhwd
+ExecStartPre=/bin/chown -R wdhwd /run/wdhwd
+PermissionsStartOnly=true
+
 Restart=always
 RestartPreventExitStatus=10 11
 #ExecReload=/usr/bin/python3 -m wdhwdaemon.client -q reload
