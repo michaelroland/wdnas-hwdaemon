@@ -1,0 +1,26 @@
+[Unit]
+Description=WD Hardware Controller Daemon
+#Wants=network-online.target
+#After=network-online.target
+
+[Service]
+Type=simple
+#User=wdhwd
+#Group=wdhwd
+#SupplementaryGroups=i2c dialout
+Environment=
+WorkingDirectory=/usr/local/lib/wdhwd
+#RuntimeDirectory=wdhwd
+#RuntimeDirectoryMode=0750
+#LogsDirectory=wdhwd
+#LogsDirectoryMode=0750
+StandardOutput=inherit
+ExecStart=/usr/bin/python3 -m wdhwdaemon.daemon -q
+Restart=always
+RestartPreventExitStatus=10 11
+#ExecReload=/usr/bin/python3 -m wdhwdaemon.client -q reload
+ExecStop=/usr/bin/python3 -m wdhwdaemon.client -q shutdown
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
