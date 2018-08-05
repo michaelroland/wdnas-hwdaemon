@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import configparser
+import errno
 import grp
 import json
 import logging
@@ -721,12 +722,6 @@ class WdHwDaemon(object):
                               cfg.group)
                 return WDHWD_EXIT_CONFIG_ERROR
         
-        # create paths (if necessary)
-        if cfg.socket_path:
-            self._createDir(os.path.dirname(cfg.socket_path), target_uid, socket_gid)
-        if cfg.log_file:
-            self._createDir(os.path.dirname(cfg.log_file), target_uid, 0)
-        
         # assemble list of supplementary groups
         target_supplementary_gids = self._resolveSupplementaryGroups(target_user_name)
         if target_user_gid not in target_supplementary_gids:
@@ -741,6 +736,81 @@ class WdHwDaemon(object):
             if additional_gid is not None:
                 target_supplementary_gids.append(additional_gid)
         
+        current_process_euid = os.geteuid()
+        if current_process_euid != 0:
+            # we are not running as superuser!
+            current_process_user_info = self._resolveUserInfo(current_process_euid)
+            current_process_user_name = ""
+            if current_process_user_info is not None:
+                current_process_user_name = current_process_user_info[0]
+            _logger.warning("%s: Daemon expected to be started as superuser "
+                            "(but was started as user %s (ID %d) instead)",
+                            type(self).__name__,
+                            current_process_user_name, current_process_euid)
+        
+        # create paths (if necessary)
+        if cfg.socket_path:
+            try:
+                self._createDir(os.path.dirname(cfg.socket_path), target_uid, socket_gid)
+            except OSError as e:
+                serr = None
+                try:
+                    serr = os.strerror(e.errno)
+                except Exception:
+                    pass
+                if e.errno == errno.EPERM and current_process_euid != 0:
+                    _logger.error("%s: Daemon not started as superuser, "
+                                  "no permission to create socket path '%s' "
+                                  "owned by user ID %s and group ID %s",
+                                  type(self).__name__,
+                                  os.path.dirname(cfg.socket_path), str(target_uid), str(socket_gid))
+                else:
+                    _logger.error("%s: Failed to create socket path '%s' "
+                                  "owned by user ID %s and group ID %s: %d (%s)",
+                                  type(self).__name__,
+                                  os.path.dirname(cfg.socket_path), str(target_uid), str(socket_gid),
+                                  e.errno, str(serr))
+                return WDHWD_EXIT_PERMISSION_ERROR
+        if cfg.log_file:
+            # default log path group to root but fall-back to target_gid in non-superuser mode
+            log_path_gid = 0
+            log_path_err = None
+            try:
+                self._createDir(os.path.dirname(cfg.log_file), target_uid, log_path_gid)
+            except OSError as e:
+                log_path_err = e.errno
+                if e.errno == errno.EPERM and current_process_euid != 0:
+                    log_path_gid = target_gid
+                    log_path_err = None
+                    _logger.warning("%s: Daemon not started as superuser, "
+                                    "creating log file path '%s' owned by group ID %s instead of root",
+                                    type(self).__name__,
+                                    os.path.dirname(cfg.socket_path), str(log_path_gid))
+                    try:
+                        self._createDir(os.path.dirname(cfg.log_file), target_uid, log_path_gid)
+                    except OSError as e:
+                        log_path_err = e.errno
+                if log_path_err is not None:
+                    if e.errno == errno.EPERM and current_process_euid != 0:
+                        _logger.error("%s: Daemon not started as superuser, "
+                                      "no permission to create log file path '%s' "
+                                      "owned by user ID %s and group ID %s",
+                                      type(self).__name__,
+                                      os.path.dirname(cfg.socket_path), str(target_uid), str(log_path_gid))
+                    else:
+                        serr = None
+                        try:
+                            serr = os.strerror(e.errno)
+                        except Exception:
+                            pass
+                        else:
+                            _logger.error("%s: Failed to create socket path '%s' "
+                                          "owned by user ID %s and group ID %s: %d (%s)",
+                                          type(self).__name__,
+                                          os.path.dirname(cfg.socket_path), str(target_uid), str(log_path_gid),
+                                          e.errno, str(serr))
+                    return WDHWD_EXIT_PERMISSION_ERROR
+        
         # drop privileges
         try:
             os.setgroups(target_supplementary_gids)
@@ -750,10 +820,31 @@ class WdHwDaemon(object):
                 serr = os.strerror(e.errno)
             except Exception:
                 pass
-            _logger.error("%s: Failed to drop supplementary groups: %d (%s)",
-                          type(self).__name__, e.errno, str(serr))
-            #return
-            pass
+            if e.errno == errno.EPERM and current_process_euid != 0:
+                _logger.warning("%s: Daemon not started as superuser, "
+                                "no permission to update supplementary groups",
+                                type(self).__name__)
+                current_suppl_gids = os.getgroups()
+                current_suppl_gids_unnecessary = []
+                current_suppl_gids_missing = []
+                for group in current_suppl_gids:
+                    if group not in target_supplementary_gids:
+                        current_suppl_gids_unnecessary.append(group)
+                for group in target_supplementary_gids:
+                    if group not in current_suppl_gids:
+                        current_suppl_gids_missing.append(group)
+                if len(current_suppl_gids_unnecessary) > 0:
+                    _logger.error("%s: Daemon not started as superuser, "
+                                  "unnecessary supplementary groups could not be dropped: %s",
+                                  type(self).__name__, repr(current_suppl_gids_unnecessary))
+                if len(current_suppl_gids_missing) > 0:
+                    _logger.error("%s: Daemon not started as superuser, "
+                                  "missing supplementary groups may cause permission errors: %s",
+                                  type(self).__name__, repr(current_suppl_gids_missing))
+            else:
+                _logger.error("%s: Failed to set supplementary groups: %d (%s)",
+                              type(self).__name__, e.errno, str(serr))
+                #return WDHWD_EXIT_PERMISSION_ERROR
         try:
             os.setresgid(target_gid, target_gid, target_gid)
         except OSError as e:
@@ -778,9 +869,10 @@ class WdHwDaemon(object):
                           type(self).__name__,
                           target_uid, e.errno, str(serr))
             return WDHWD_EXIT_PERMISSION_ERROR
-        _logger.debug("%s: Dropped privileges (user = %d, group = %d, supplementary_groups = %s)",
+        _logger.debug("%s: Dropped privileges. "
+                      "Now running as user ID %d, group ID %d, with supplementary_groups: %s",
                       type(self).__name__,
-                      target_uid, target_gid, repr(target_supplementary_gids))
+                      target_uid, target_gid, repr(os.getgroups()))
         
         if log_level > cfg.log_level:
             log_level = cfg.log_level
