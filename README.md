@@ -77,8 +77,8 @@ The sample configuration expects a logging directory writable by the user wdhwd 
 <samp>/var/log/wdhwd</samp>:
 
     sudo mkdir /var/log/wdhwd
-    sudo chown root.wdhwd /var/log/wdhwd
-    sudo chmod -R ug=rwX,o= /var/log/wdhwd
+    sudo chown wdhwd.root /var/log/wdhwd
+    sudo chmod -R u=rwX,g=rX,o= /var/log/wdhwd
 
 
 ### Install and start the daemon
