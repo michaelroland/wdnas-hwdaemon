@@ -566,6 +566,29 @@ class WdHwDaemon(object):
                 pass
         return None
     
+    def _resolveUserName(self, user):
+        """Resolve the user name for a given user name or ID.
+        
+        Args:
+            user (str): Name or ID of the user to resolve the user name for.
+        
+        Returns:
+            str: Resolved user name; or None.
+        """
+        if user is not None:
+            try:
+                user_info = None
+                try:
+                    uid = int(user)
+                    user_info = pwd.getpwuid(uid)
+                except ValueError:
+                    user_info = pwd.getpwnam(user)
+                if user_info is not None:
+                    return user_info.pw_name
+            except Exception:
+                pass
+        return None
+    
     def _resolveGroupId(self, group):
         """Resolve the numeric group ID for a given group name or ID.
         
@@ -585,6 +608,29 @@ class WdHwDaemon(object):
                     group_info = grp.getgrnam(group)
                 if group_info is not None:
                     return group_info.gr_gid
+            except Exception:
+                pass
+        return None
+    
+    def _resolveGroupName(self, group):
+        """Resolve the group name for a given group name or ID.
+        
+        Args:
+            group (str): Name or ID of the group to resolve the group name for.
+        
+        Returns:
+            str: Resolved group name; or None.
+        """
+        if group is not None:
+            try:
+                group_info = None
+                try:
+                    gid = int(group)
+                    group_info = grp.getgrgid(gid)
+                except ValueError:
+                    group_info = grp.getgrnam(group)
+                if group_info is not None:
+                    return group_info.gr_name
             except Exception:
                 pass
         return None
@@ -733,20 +779,16 @@ class WdHwDaemon(object):
                 target_supplementary_gids.append(file_access_gid)
         for additional_group in WDHWD_SUPPLEMENTARY_GROUPS:
             additional_gid = self._resolveGroupId(additional_group)
-            if additional_gid is not None:
+            if (additional_gid is not None) and (additional_gid not in target_supplementary_gids):
                 target_supplementary_gids.append(additional_gid)
         
         current_process_euid = os.geteuid()
         if current_process_euid != 0:
             # we are not running as superuser!
-            current_process_user_info = self._resolveUserInfo(current_process_euid)
-            current_process_user_name = ""
-            if current_process_user_info is not None:
-                current_process_user_name = current_process_user_info[0]
             _logger.warning("%s: Daemon expected to be started as superuser "
                             "(but was started as user %s (ID %d) instead)",
                             type(self).__name__,
-                            current_process_user_name, current_process_euid)
+                            self._resolveUserName(current_process_euid), current_process_euid)
         
         # create paths (if necessary)
         if cfg.socket_path:
@@ -761,14 +803,18 @@ class WdHwDaemon(object):
                 if e.errno == errno.EPERM and current_process_euid != 0:
                     _logger.error("%s: Daemon not started as superuser, "
                                   "no permission to create socket path '%s' "
-                                  "owned by user ID %s and group ID %s",
+                                  "owned by user %s (ID %s) and group %s(ID %s)",
                                   type(self).__name__,
-                                  os.path.dirname(cfg.socket_path), str(target_uid), str(socket_gid))
+                                  os.path.dirname(cfg.socket_path),
+                                  self._resolveUserName(target_uid), str(target_uid),
+                                  self._resolveGroupName(socket_gid), str(socket_gid))
                 else:
                     _logger.error("%s: Failed to create socket path '%s' "
-                                  "owned by user ID %s and group ID %s: %d (%s)",
+                                  "owned by user %s (ID %s) and group %s (ID %s): %d (%s)",
                                   type(self).__name__,
-                                  os.path.dirname(cfg.socket_path), str(target_uid), str(socket_gid),
+                                  os.path.dirname(cfg.socket_path),
+                                  self._resolveUserName(target_uid), str(target_uid),
+                                  self._resolveGroupName(socket_gid), str(socket_gid),
                                   e.errno, str(serr))
                 return WDHWD_EXIT_PERMISSION_ERROR
         if cfg.log_file:
@@ -783,9 +829,10 @@ class WdHwDaemon(object):
                     log_path_gid = target_gid
                     log_path_err = None
                     _logger.warning("%s: Daemon not started as superuser, "
-                                    "creating log file path '%s' owned by group ID %s instead of root",
+                                    "creating log file path '%s' owned by group %s (ID %s) instead of root",
                                     type(self).__name__,
-                                    os.path.dirname(cfg.socket_path), str(log_path_gid))
+                                    os.path.dirname(cfg.socket_path),
+                                    self._resolveGroupName(log_path_gid), str(log_path_gid))
                     try:
                         self._createDir(os.path.dirname(cfg.log_file), target_uid, log_path_gid)
                     except OSError as e:
@@ -794,9 +841,11 @@ class WdHwDaemon(object):
                     if e.errno == errno.EPERM and current_process_euid != 0:
                         _logger.error("%s: Daemon not started as superuser, "
                                       "no permission to create log file path '%s' "
-                                      "owned by user ID %s and group ID %s",
+                                      "owned by user %s (ID %s) and group %s (ID %s)",
                                       type(self).__name__,
-                                      os.path.dirname(cfg.socket_path), str(target_uid), str(log_path_gid))
+                                      os.path.dirname(cfg.socket_path),
+                                      self._resolveUserName(target_uid), str(target_uid),
+                                      self._resolveGroupName(log_path_gid), str(log_path_gid))
                     else:
                         serr = None
                         try:
@@ -805,9 +854,11 @@ class WdHwDaemon(object):
                             pass
                         else:
                             _logger.error("%s: Failed to create socket path '%s' "
-                                          "owned by user ID %s and group ID %s: %d (%s)",
+                                          "owned by user %s (ID %s) and group %s (ID %s): %d (%s)",
                                           type(self).__name__,
-                                          os.path.dirname(cfg.socket_path), str(target_uid), str(log_path_gid),
+                                          os.path.dirname(cfg.socket_path),
+                                          self._resolveUserName(target_uid), str(target_uid),
+                                          self._resolveGroupName(log_path_gid), str(log_path_gid),
                                           e.errno, str(serr))
                     return WDHWD_EXIT_PERMISSION_ERROR
         
@@ -829,10 +880,10 @@ class WdHwDaemon(object):
                 current_suppl_gids_missing = []
                 for group in current_suppl_gids:
                     if group not in target_supplementary_gids:
-                        current_suppl_gids_unnecessary.append(group)
+                        current_suppl_gids_unnecessary.append("{} (ID {})".format(self._resolveGroupName(group), group))
                 for group in target_supplementary_gids:
                     if group not in current_suppl_gids:
-                        current_suppl_gids_missing.append(group)
+                        current_suppl_gids_missing.append("{} (ID {})".format(self._resolveGroupName(group), group))
                 if len(current_suppl_gids_unnecessary) > 0:
                     _logger.error("%s: Daemon not started as superuser, "
                                   "unnecessary supplementary groups could not be dropped: %s",
@@ -853,9 +904,10 @@ class WdHwDaemon(object):
                 serr = os.strerror(e.errno)
             except Exception:
                 pass
-            _logger.error("%s: Failed to set real/effective group ID to '%d': %d (%s)",
+            _logger.error("%s: Failed to set real/effective group to %s (ID %s): %d (%s)",
                           type(self).__name__,
-                          target_gid, e.errno, str(serr))
+                          self._resolveGroupName(target_gid), str(target_gid),
+                          e.errno, str(serr))
             return WDHWD_EXIT_PERMISSION_ERROR
         try:
             os.setresuid(target_uid, target_uid, target_uid)
@@ -865,14 +917,20 @@ class WdHwDaemon(object):
                 serr = os.strerror(e.errno)
             except Exception:
                 pass
-            _logger.error("%s: Failed to set real/effective user ID to '%d': %d (%s)",
+            _logger.error("%s: Failed to set real/effective user to %s (ID %s): %d (%s)",
                           type(self).__name__,
-                          target_uid, e.errno, str(serr))
+                          self._resolveUserName(target_uid), str(target_uid),
+                          e.errno, str(serr))
             return WDHWD_EXIT_PERMISSION_ERROR
+        current_suppl_groups = []
+        for group in os.getgroups():
+            current_suppl_groups.append("{} (ID {})".format(self._resolveGroupName(group), group))
         _logger.debug("%s: Dropped privileges. "
-                      "Now running as user ID %d, group ID %d, with supplementary_groups: %s",
+                      "Now running as user %s (ID %s), group %s (ID %s), with supplementary_groups: %s",
                       type(self).__name__,
-                      target_uid, target_gid, repr(os.getgroups()))
+                      self._resolveUserName(target_uid), str(target_uid),
+                      self._resolveGroupName(target_gid), str(target_gid),
+                      repr(current_suppl_groups))
         
         if log_level > cfg.log_level:
             log_level = cfg.log_level
