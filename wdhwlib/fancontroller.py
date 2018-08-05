@@ -615,6 +615,15 @@ class FanController(FanControllerCallback):
                         level = monitor.level
                         if level is not None:
                             if global_level < level:
+                                temperature = monitor.temperature
+                                temperature_str = "N/A"
+                                if temperature is not None:
+                                    temperature_str = "{:.2f}".format(temperature)
+                                _logger.debug("%s: Highest monitored alert level is %d by %s (with temperature %s)",
+                                              type(self).__name__,
+                                              level,
+                                              type(monitor).__name__,
+                                              temperature_str)
                                 global_level = level
                     
                     fan_speed_change = False
