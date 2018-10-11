@@ -1,7 +1,7 @@
-# Hardware Controller for Western Digital My Cloud DL2100 NAS Systems
+# Hardware Controller for Western Digital My Cloud NAS Systems
 
 This repository contains reimplementations of various user space tools for power,
-LED, and temperature management of Western Digital My Cloud DL2100 NAS Systems.
+LED, and temperature management of Western Digital My Cloud DL2100, DL4100, PR2100 and PR4100 NAS Systems.
 
 
 ## WARNING
