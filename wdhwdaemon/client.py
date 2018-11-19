@@ -300,6 +300,23 @@ class WdHwClient(object):
                 description="{}\ntemperature: get system temperature command".format(wdhwdaemon.WDHWC_DESCRIPTION),
                 epilog=wdhwdaemon.WDHWD_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        cmd_lcd = subparsers.add_parser('lcd', help='set LCD text and brightness',
+                description="{}\nlcd: set LCD text and brightness".format(wdhwdaemon.WDHWC_DESCRIPTION),
+                epilog=wdhwdaemon.WDHWD_EPILOG,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
+        cmd_lcd_action = cmd_lcd.add_argument_group(title='LCD action mode')
+        cmd_lcd_action.add_argument(
+                '-t', '--text', action='store', type=str, dest='text', metavar="TEXT",
+                default=None,
+                help='set LCD text')
+        cmd_lcd_action = cmd_lcd_action.add_mutually_exclusive_group()
+        cmd_lcd_action.add_argument(
+                '-s', '--set', action='store', type=int, dest='backlight', metavar='BACKLIGHT',
+                default=None,
+                help='set LCD backlight level (0 - 255)')
+        cmd_lcd_action.add_argument(
+                '-g', '--get', action='store_true',
+                help='get LCD backlight level')
         cmd_drive = subparsers.add_parser('drive', help='drive bay control command',
                 description="{}\ndrive: drive bay control command".format(wdhwdaemon.WDHWC_DESCRIPTION),
                 epilog=wdhwdaemon.WDHWD_EPILOG,
@@ -437,7 +454,17 @@ class WdHwClient(object):
                     cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
                 else:
                     conn.setFanSpeed(args.speed)
-        
+
+        elif args.command == "lcd":
+            if args.text:
+                line1, sep, line2 = args.text.partition('\\n')
+                conn.setLCDText(1, line1)
+                conn.setLCDText(2, line2)
+            elif args.backlight:
+                conn.setLCDBacklightIntensity(args.backlight)
+            else:
+                conn.getLCDBacklightIntensity()
+
         elif args.command == "drive":
             if args.get or ((args.drivebay_enable is None) and (args.drivebay_disable is None)):
                 present_mask = conn.getDrivePresentMask()
