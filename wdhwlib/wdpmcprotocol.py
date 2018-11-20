@@ -83,6 +83,12 @@ PMC_INTERRUPT_POWER_2_STATE_CHANGED  = 0b00000010
 PMC_INTERRUPT_POWER_1_STATE_CHANGED  = 0b00000100
 PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED = 0b00010000
 
+#PMC button interrupts
+PMC_INTERRUPT_BUTTON_NONE_PRESSED = 0b00000000
+PMC_INTERRUPT_BUTTON_USB_PRESSED  = 0b00001000
+PMC_INTERRUPT_BUTTON_UP_PRESSED   = 0b00100000
+PMC_INTERRUPT_BUTTON_DOWN_PRESSED = 0b01000000
+
 #PMC power-up status
 PMC_STATUS_POWER_2_UP = 0b00000010
 PMC_STATUS_POWER_1_UP = 0b00000100
@@ -1045,12 +1051,13 @@ class PMCCommands(PMCInterruptCallback):
         #   - Original firmware operation:
         #       - result = ~(STA & 0x68) & ISR;
         #   - Interpretation: bitmask (1 byte) for pending interrupts
-        #       - Bit 0: ??? (never observed as set)
+        #       - Bit 0: No buttons pressed
         #       - Bit 1: Power adapter state changed on socket 2
         #       - Bit 2: Power adapter state changed on socket 1
-        #       - Bit 3: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
+        #       - Bit 3: USB copy button pressed
         #       - Bit 4: Drive presence changed
-        #       - Bit 5-6: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
+        #       - Bit 5: LCD up button pressed
+        #       - Bit 6: LCD down button pressed
         #       - Bit 7: ??? (never observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)

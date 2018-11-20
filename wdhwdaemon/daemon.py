@@ -227,7 +227,9 @@ class ConfigFile(object):
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "temperature_changed_command", default=None)
         self.declareOption(SECTION, "temperature_changed_args", default=["{new_level}", "{old_level}"], parser=self.parseArray)
-    
+        self.declareOption(SECTION, "lcd_button_pressed_commands", default=[], parser=self.parseArray)
+        self.declareOption(SECTION, "usb_button_pressed_command", default=None)
+
     def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
         if attribute_name is None:
             attribute_name = option_name
@@ -319,6 +321,7 @@ class WdHwDaemon(object):
         self.__pmc_version = ""
         self.__pmc_status = 0
         self.__pmc_drive_presence_mask = 0
+        self.__lcd_button_index = 0
         self.__temperature_reader = None
         self.__fan_controller = None
         self.__server = None
@@ -510,7 +513,19 @@ class WdHwDaemon(object):
                 cmd.append(arg.format(socket=str(socket_number),
                                       state="1" if powered_up else "0"))
             result = subprocess.call(cmd)
-    
+
+    def notifyButtonLCDPressed(self):
+        """Notify press of LCD button up or down."""
+        commands = self.__cfg.lcd_button_pressed_commands
+        if commands:
+            cmd = commands[self.__lcd_button_index % len(commands)]
+            result = subprocess.call(cmd)
+
+    def notifyButtonUSBPressed(self):
+        """Notify press of USB button."""
+        if self.__cfg.usb_button_pressed_command:
+            result = subprocess.call(self.__cfg.usb_button_pressed_command)
+
     def receivedPMCInterrupt(self, isr):
         """Notify reception of a pending PMC interrupt.
         
@@ -540,6 +555,16 @@ class WdHwDaemon(object):
         if (isr & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0:
             power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0
             self.notifyPowerSupplyChanged(2, power_up)
+
+        # test for button presses
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_BUTTON_UP_PRESSED):
+            self.__lcd_button_index += 1
+            self.notifyButtonLCDPressed()
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_BUTTON_DOWN_PRESSED):
+            self.__lcd_button_index -= 1
+            self.notifyButtonLCDPressed()
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_BUTTON_USB_PRESSED):
+            self.notifyButtonUSBPressed()
     
     def _resolveUserInfo(self, user):
         """Resolve the user information for a given user name or ID.
