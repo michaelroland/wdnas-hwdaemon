@@ -24,7 +24,7 @@
 
 
 function get_ip {
-	ip route get 1 | awk '{print $NF;exit}'
+	ip route get 1 | sed 's/^.*src \([^ ]*\).*$/\1/;q'
 }
 
 function get_disk_usage {
