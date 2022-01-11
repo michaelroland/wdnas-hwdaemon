@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Daemon Package.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@ WDHWD_VERSION = "%(prog)s v{version}".format(version=__version__)
 WDHWD_DESCRIPTION = "Western Digital Hardware Controller Daemon"
 WDHWC_DESCRIPTION = "Western Digital Hardware Controller Client"
 WDHWD_EPILOG = """
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2019 Stefaan Ghysels <stefaang@gmail.com>
 License GPLv3+: GNU GPL version 3 or later <http://www.gnu.org/licenses/>
 
 This is free software: you can redistribute and/or modify it under the
