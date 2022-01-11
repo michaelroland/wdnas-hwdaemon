@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """System Component Temperature Readings.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,7 +56,10 @@ _SMBUS_MEMORY_SPD_TEMP_ADDRESS = 0x18
 _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE = 5
 
 _HDSMART_COMMAND_BASE = ["/usr/bin/sudo", "-n", "/usr/sbin/hddtemp", "-n", "-u", "C"]
+# for DL2100/PR2100:
 HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
+# for DL4100/PR4100:
+#HDSMART_DISKS = ["/dev/sda", "/dev/sdb", "/dev/sdc", "/dev/sdd"]
 _HDSMART_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
 
 

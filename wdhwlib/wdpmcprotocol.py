@@ -36,6 +36,7 @@ _logger = logging.getLogger(__name__)
 
 # PMC serial interface configuration
 PMC_UART_PORT_DEFAULT = "/dev/ttyS0"
+# on PR2100/PR4100: PMC_UART_PORT_DEFAULT = "/dev/ttyS2"
 _PMC_UART_BAUDRATE = 9600
 _PMC_UART_DATABITS = serial.EIGHTBITS
 _PMC_UART_PARITY = serial.PARITY_NONE
@@ -67,14 +68,15 @@ _PMC_COMMAND_LCD_BACKLIGHT = "BKL"
 _PMC_COMMAND_LCD_TEXT_N = "LN{:d}"
 _PMC_COMMAND_TEMPERATURE = "TMP"
 _PMC_COMMAND_FAN_RPM = "RPM"
+_PMC_COMMAND_FAN_TACHOCOUNT = "TAC"
 _PMC_COMMAND_FAN_SPEED = "FAN"
-_PMC_COMMAND_DRIVEBAY_DRIVE_ENABLED = "DE0"
+_PMC_COMMAND_DRIVEBAY_ENABLED = "DE0"
 _PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT = "DP0"
 _PMC_COMMAND_DRIVEBAY_POWERUP_SET = "DLS"
 _PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR = "DLC"
+_PMC_COMMAND_DRIVEBAY_LED_BLINK = "DLB"
 _PMC_COMMAND_INTERRUPT_MASK = "IMR"
 _PMC_COMMAND_INTERRUPT_STATUS = "ISR"
-_PMC_COMMAND_DLB = "DLB"
 
 #PMC interrrupts
 PMC_INTERRUPT_MASK_NONE              = 0b00000000
@@ -424,7 +426,9 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: VER
         # Response: VER=WD PMC v[[:digit:]]+
-        #   - Observed value (always): "WD PMC v17"
+        #   - Observed values:
+        #       - on DL2100 (always): "WD PMC v17"
+        #       - on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250): "WD BBC v01"
         return self.__processor.transceiveCommand(_PMC_COMMAND_VERSION)
     
     def getConfiguration(self):
@@ -475,6 +479,8 @@ class PMCCommands(PMCInterruptCallback):
         #       - Bit 0: automatic HDD power enable based on presence detection
         #       - Bit 1: ??? (set upon power-up)
         #       - Bit 2-7: ??? (cleared upon power-up)
+        #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
+        #       - "2"
         # Response: ACK | ERR
         configuration_mask = configuration
         configuration_field = "{0:02X}".format(configuration_mask & 0x0FF)
@@ -796,13 +802,23 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: LN%d=%s
+        #   - Line value (1 digit): Line of the LCD.
+        #       - 1 -> first line
+        #       - 2 -> second line
+        #   - Parameter (n bytes): n characters of US-ASCII text (n <= 16).
+        #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
+        #       - "LN1=Welcome to WD   "
+        #       - "LN2=My Cloud PR4100 "
+        #   - Tested values (by https://community.wd.com/u/Tfl on PR4100):
+        #       - "LN1=Look hot"
+        #       - "LN2=Stay cool"
         # Response: ACK | ERR
-        if line < 0:
-            line = 0
-        if line > 9:
-            line = 0
+        if line < 1:
+            line = 1
+        if line > 2:
+            line = 2
         command_field = _PMC_COMMAND_LCD_TEXT_N.format(line)
-        # TODO: Check value for valid characters!
+        # TODO: Check value for valid characters and length!
         text_field = value
         self.__processor.transceiveCommand(command_field, text_field)
     
@@ -831,6 +847,36 @@ class PMCCommands(PMCInterruptCallback):
         if match is not None:
             speed_rpm = int(match.group(1), 16)
             return speed_rpm
+        else:
+            raise PMCUnexpectedResponseError("Response argument '{0}' "
+                                             "does not match expected "
+                                             "format".format(status_field))
+    
+    def getFanTachoCount(self):
+        """Get the measured fan speed in tacho pulses per second.
+        
+        Returns:
+            int: The fan speed in tacho pulses per second.
+        
+        Raises:
+            PMCCommandRejectedException: If the PMC refused the command with
+                an ERR packet.
+            PMCCommandTimeoutError: If the response timeout was reached before
+                receiving a response.
+            PMCUnexpectedResponseError: If the received response does not
+                match the sent command.
+        """
+        # Command: TAC
+        # Response: TAC=[[:xdigit:]]+
+        #   - Observed values:
+        #       - "003e" at RPM=0744 and FAN=1e -> 62 pulses at 1860 RPM and fan at 30%
+        #       - "008f" at RPM=10a4 and FAN=50 -> 143 pulses at 4260 RPM and fan at 80%
+        #   - Interpretation: Hexadecimal value (2 bytes) representing the fan speed in tacho pulses per second
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_FAN_TACHOCOUNT)
+        match = _PMC_REGEX_NUMBER_HEX.match(status_field)
+        if match is not None:
+            speed_tac = int(match.group(1), 16)
+            return speed_tac
         else:
             raise PMCUnexpectedResponseError("Response argument '{0}' "
                                              "does not match expected "
@@ -891,10 +937,10 @@ class PMCCommands(PMCInterruptCallback):
         self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED, speed_field)
     
     def getDriveEnabledMask(self):
-        """Get drive bay power-up status information.
+        """Get drive bay power-up and LED status information.
         
         Returns:
-            int: Drive bay power-up status mask.
+            int: Drive bay power-up and and LED status mask.
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -907,16 +953,21 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DE0
         # Response: DE0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive in bay 0 (right) powered-up: "f1"
-        #       - Only drive in bay 1 (left) powered-up: "f2"
+        #       - Only drive in bay 0 (right on DL2100) powered-up: "f1"
+        #       - Only drive in bay 1 (left on DL2100) powered-up: "f2"
         #       - Drives in both bays powered-up: "f3"
         #       - Value changes as a result of DLS/DLC
-        #   - Interpretation: bitmask (1 byte) for drive bays
-        #       - Bit 0: set when drive in bay 0 (right) is powered-up, cleared when drive is absent or powered-down
-        #       - Bit 1: set when drive in bay 1 (left) is powered-up, cleared when drive is absent or powered-down
-        #       - Bit 2-3: ??? (always observed as cleared; may indicate presence for the two non-existent drive bays, cf. DL4100)
-        #       - Bit 4-7: ??? (always observed as set)
-        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_ENABLED)
+        #   - Interpretation: bitmask (1 byte) for drive bay power state (lower nibble) and alert LED (red) state (upper nibble)
+        #       - Bit 0: set when drive in bay 0 (right on DL2100) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
+        #       - Bit 1: set when drive in bay 1 (left on DL2100) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
+        #       - Bit 2: set when drive in bay 2 (on 4-bay versions?) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
+        #       - Bit 3: set when drive in bay 3 (on 4-bay versions?) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
+        #       - Bit 4: set when drive bay 0 (right on DL2100) alert LED (red) is off, cleared when drive bay alert LED (red) is on
+        #       - Bit 5: set when drive bay 1 (left on DL2100) alert LED (red) is off, cleared when drive bay alert LED (red) is on
+        #       - Bit 6: set when drive bay 2 (on 4-bay versions?) alert LED (red) is off, cleared when drive bay alert LED (red) is on
+        #       - Bit 7: set when drive bay 3 (on 4-bay versions?) alert LED (red) is off, cleared when drive bay alert LED (red) is on
+        #   - Note: DE0=xx may be used to directly set drive bay power-up and LED status, DLS/DLC make bitwise modifications
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_ENABLED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
             drivebay_mask = int(match.group(1), 16)
@@ -943,15 +994,20 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DP0
         # Response: DP0=[[:xdigit:]]+
         #   - Observed values:
-        #       - Only drive in bay 0 (right) inserted: "8d"
-        #       - Only drive in bay 1 (left) inserted: "8e"
+        #       - Only drive in bay 0 (right on DL2100) inserted: "8d"
+        #       - Only drive in bay 1 (left on DL2100) inserted: "8e"
         #       - Drives in both bays inserted: "8c"
         #       - Value does NOT change as a result of DLS/DLC
         #   - Interpretation: bitmask (1 byte) for drive bays
-        #       - Bit 0: cleared when drive in bay 0 (right) is present, set when drive is absent
-        #       - Bit 1: cleared when drive in bay 1 (left) is present, set when drive is absent
-        #       - Bit 2-3: ??? (always observed as set; may indicate presence for the two non-existent drive bays, cf. DL4100)
-        #       - Bit 4-6: ??? (always observed as cleared)
+        #       - Bit 0: cleared when drive in bay 0 (right on DL2100) is present, set when drive is absent
+        #       - Bit 1: cleared when drive in bay 1 (left on DL2100) is present, set when drive is absent
+        #       - Bit 2: cleared when drive in bay 2 (on 4-bay versions?) is present, set when drive is absent
+        #       - Bit 3: cleared when drive in bay 3 (on 4-bay versions?) is present, set when drive is absent
+        #       - Bit 4: ???
+        #           - always observed as cleared on DL2100
+        #           - always observed as set on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250)
+        #           - May indicate 2-bay (cleared) vs. 4-bay (set)?
+        #       - Bit 5-6: ??? (always observed as cleared)
         #       - Bit 7: ??? (always observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
@@ -978,24 +1034,149 @@ class PMCCommands(PMCInterruptCallback):
             PMCUnexpectedResponseError: If the received response does not
                 match the sent command.
         """
+        if bay_number < 0:
+            bay_number = 0
+        elif bay_number > 3:
+            bay_number = 3
         drivebay_mask_field = "{0:02X}".format(1 << bay_number)
         if enable:
             # Command: DLS=%X
-            #   - Parameter (1 byte): bitmask for drive bays
-            #       - 0b00000001: Bay 0 (right)
-            #       - 0b00000010: Bay 1 (left)
+            #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power on)
+            #       - 0b00000001: Bay 0 (right on DL2100)
+            #       - 0b00000010: Bay 1 (left on DL2100)
+            #       - 0b00000100: Bay 2 (on 4-bay versions?)
+            #       - 0b00001000: Bay 3 (on 4-bay versions?)
+            #       - Bits 4-7: see setDriveAlertLED()
+            #   - Sets the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
                                                drivebay_mask_field)
         else:
             # Command: DLC=%X
-            #   - Parameter (1 byte): bitmask for drive bays
-            #       - 0b00000001: Bay 0 (right)
-            #       - 0b00000010: Bay 1 (left)
+            #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power off)
+            #       - 0b00000001: Bay 0 (right on DL2100)
+            #       - 0b00000010: Bay 1 (left on DL2100)
+            #       - 0b00000100: Bay 2 (on 4-bay versions?)
+            #       - 0b00001000: Bay 3 (on 4-bay versions?)
+            #       - Bits 4-7: see setDriveAlertLED()
+            #   - Clears the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
                                                drivebay_mask_field)
+    
+    def setDriveAlertLED(self, bay_number, enable):
+        """Change drive bay alert LED (red) state.
+        
+        Args:
+            bay_number (int): The drive bay to change the alert LED state for.
+            enable (bool): A boolean flag indicating the new alert LED state.
+        
+        Raises:
+            PMCCommandRejectedException: If the PMC refused the command with
+                an ERR packet.
+            PMCCommandTimeoutError: If the response timeout was reached before
+                receiving a response.
+            PMCUnexpectedResponseError: If the received response does not
+                match the sent command.
+        """
+        if bay_number < 0:
+            bay_number = 0
+        elif bay_number > 3:
+            bay_number = 3
+        drivebay_mask_field = "{0:02X}".format(1 << (bay_number + 4))
+        if enable:
+            # Command: DLC=%X
+            #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLC turns LED on)
+            #       - 0b00010000: Bay 0 (right on DL2100)
+            #       - 0b00100000: Bay 1 (left on DL2100)
+            #       - 0b01000000: Bay 2 (on 4-bay versions?)
+            #       - 0b10000000: Bay 3 (on 4-bay versions?)
+            #       - Bits 0-3: see setDriveEnabled()
+            #   - Clears the specified bits in DE0
+            #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
+            #       - "10"
+            #       - "20"
+            #       - "40"
+            #       - "80"
+            # Response: ACK | ERR
+            self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
+                                               drivebay_mask_field)
+        else:
+            # Command: DLS=%X
+            #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLS turns LED off)
+            #       - 0b00010000: Bay 0 (right on DL2100)
+            #       - 0b00100000: Bay 1 (left on DL2100)
+            #       - 0b01000000: Bay 2 (on 4-bay versions?)
+            #       - 0b10000000: Bay 3 (on 4-bay versions?)
+            #       - Bits 0-3: see setDriveEnabled()
+            #   - Sets the specified bits in DE0
+            #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
+            #       - "10"
+            #       - "20"
+            #       - "40"
+            #       - "80"
+            # Response: ACK | ERR
+            self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
+                                               drivebay_mask_field)
 
+    def getDriveAlertLEDBlinkMask(self):
+        """Get drive bay alert LED (red) blinking state.
+        
+        Returns:
+            int: Drive bay alert LED (red) blinking state mask.
+        
+        Raises:
+            PMCCommandRejectedException: If the PMC refused the command with
+                an ERR packet.
+            PMCCommandTimeoutError: If the response timeout was reached before
+                receiving a response.
+            PMCUnexpectedResponseError: If the received response does not
+                match the sent command.
+        """
+        # Command: DLB
+        # Response: DLB=[[:xdigit:]]+
+        #   - Observed values:
+        #       - Upon power-up: "00"
+        #   - Original firmware operation:
+        #         result = ((DLB >> (??? + 4)) & 1) != 0;
+        #   - Interpretation: bitmask (1 byte) for drive bay alert LED (red) state in upper nibble
+        #       - See setDriveAlertLEDBlinkMask()
+        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_LED_BLINK)
+        match = _PMC_REGEX_NUMBER_HEX.match(status_field)
+        if match is not None:
+            status_value = int(match.group(1), 16)
+            return (status_value & 0x0F0) >> 4
+        else:
+            raise PMCUnexpectedResponseError("Response argument '{0}' "
+                                             "does not match expected "
+                                             "format".format(status_field))
+    
+    def setDriveAlertLEDBlinkMask(self, blink_mask):
+        """Change drive bay alert LED (red) blinking state.
+        
+        Args:
+            blink_mask (int): Drive bay alert LED (red) blinking state mask.
+        
+        Raises:
+            PMCCommandRejectedException: If the PMC refused the command with
+                an ERR packet.
+            PMCCommandTimeoutError: If the response timeout was reached before
+                receiving a response.
+            PMCUnexpectedResponseError: If the received response does not
+                match the sent command.
+        """
+        # Command: DLB=%X
+        #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red)
+        #       - Bit 0-3: not used? (always observed as cleared)
+        #       - Bit 4: drive bay 0 (right on DL2100) alert LED (red) blinking state (1 = blinking, 0 = off)
+        #       - Bit 5: drive bay 1 (left on DL2100) alert LED (red) blinking state (1 = blinking, 0 = off)
+        #       - Bit 6: drive bay 2 (on 4-bay versions?) alert LED (red) blinking state (1 = blinking, 0 = off)
+        #       - Bit 7: drive bay 3 (on 4-bay versions?) alert LED (red) blinking state (1 = blinking, 0 = off)
+        # Response: ACK | ERR
+        status_field = "{0:02X}".format((blink_mask << 4) & 0x0F0)
+        self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_LED_BLINK,
+                                           status_field)
+    
     def setInterruptMask(self, mask=PMC_INTERRUPT_MASK_ALL):
         """Set the interrupt mask in order to enable/request interrupts.
         
@@ -1033,7 +1214,7 @@ class PMCCommands(PMCInterruptCallback):
         """
         # Command: ISR
         # Response: ISR=[[:xdigit:]]+
-        #   - Observed values:
+        #   - Observed values on DL2100:
         #       - Upon power-up: "00"
         #       - With IMR=FF and after receiving ALERT:
         #           - After unplugging and re-plugging power adapter (at socket 1) while powered off: "6c" (same value as STA)
@@ -1042,16 +1223,22 @@ class PMCCommands(PMCInterruptCallback):
         #           - After unplugging or (re-)plugging power adapter (at socket 1) while powered on: "04"
         #           - After unplugging or (re-)plugging power adapter (at socket 2) while powered on: "02"
         #           - After inserting or removing any drive: "10"
+        #           - After pressing or releasing USB copy button: "08"
+        #   - Observed values on PR4100 (https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250):
+        #       - USB copy button pressed: "08"
+        #       - LCD up button pressed: "20"
+        #       - LCD down button pressed: "40"
         #   - Original firmware operation:
         #       - result = ~(STA & 0x68) & ISR;
         #   - Interpretation: bitmask (1 byte) for pending interrupts
         #       - Bit 0: ??? (never observed as set)
         #       - Bit 1: Power adapter state changed on socket 2
         #       - Bit 2: Power adapter state changed on socket 1
-        #       - Bit 3: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
+        #       - Bit 3: USB copy button pressed
         #       - Bit 4: Drive presence changed
-        #       - Bit 5-6: ??? (never observed as set except on ISR==STA interrupt; ignored by original firmware)
-        #       - Bit 7: ??? (never observed as set)
+        #       - Bit 5: LCD up button pressed
+        #       - Bit 6: LCD down button pressed
+        #       - Bit 7: ECH=XX sent
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_STATUS)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
         if match is not None:
@@ -1062,36 +1249,19 @@ class PMCCommands(PMCInterruptCallback):
                                              "does not match expected "
                                              "format".format(status_field))
     
-    def getDLB(self):
-        """TODO: What does DLB do???
-        
-        Returns:
-            int: ???.
-        
-        Raises:
-            PMCCommandRejectedException: If the PMC refused the command with
-                an ERR packet.
-            PMCCommandTimeoutError: If the response timeout was reached before
-                receiving a response.
-            PMCUnexpectedResponseError: If the received response does not
-                match the sent command.
-        """
-        # Command: DLB
-        # Response: DLB=[[:xdigit:]]+
-        #   - Observed values:
-        #       - Upon power-up: "00"
-        #   - Original firmware operation:
-        #         result = ((DLB >> (??? + 4)) & 1) != 0;
-        #   - Interpretation: ???
-        status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DLB)
-        match = _PMC_REGEX_NUMBER_HEX.match(status_field)
-        if match is not None:
-            status_value = int(match.group(1), 16)
-            return status_value
-        else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+    #ECH -> https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250:
+    #    Observed values on DL2100:
+    #        - "00" (always)
+    #    ECH=XX causes immediate ALERT response (with ISR=80)
+    #
+    #UPD -> https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/226:
+    #       ========= WDPMC Update Menu v1.0 =============
+    #       Reset PMC -------------------------------- 0
+    #       Write Image To PMC Internal Flash -------- 1
+    #       Read Image From PMC Internal Flash ------- 2
+    #       Execute The New Program ------------------ 3
+    #       ==============================================
+    #       Invalid Number ! ==> The number should be either 1, 2 or 3
     
     def sendRaw(self, raw_command):
         """Send raw command.
