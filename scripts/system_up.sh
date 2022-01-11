@@ -21,6 +21,12 @@
 ## 
 ################################################################################
 
+retry_count="90"
+while [[ $retry_count -gt 0 && -z $(hostname --all-fqdns) ]]; do
+    sleep 1
+    retry_count=$((retry_count - 1))
+done
+
 mail_sender_name="NAS $(hostname -s)"
 mail_sender_addr="$(whoami)"
 mail_recipient_addr="root"
