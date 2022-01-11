@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Client.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -197,6 +197,10 @@ class WdHwConnector(BasicPacketClient):
             return response[0]
         else:
             raise ValueError("Invalid response format")
+    
+    def sendDebug(self, raw_command):
+        response = self._executeCommand(CommandPacket.CMD_PMC_DEBUG,
+                                        parameter=raw_command.encode('ascii', 'ignore'))
 
 
 class WdHwClient(object):
@@ -317,6 +321,15 @@ class WdHwClient(object):
                 description="{}\nshutdown: daemon shutdown command".format(wdhwdaemon.WDHWC_DESCRIPTION),
                 epilog=wdhwdaemon.WDHWD_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        cmd_pmc_debug = subparsers.add_parser('pmc_debug', help='PMC debug command',
+                description="{}\npmc_debug: PMC debug command".format(wdhwdaemon.WDHWC_DESCRIPTION),
+                epilog=wdhwdaemon.WDHWD_EPILOG,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
+        cmd_pmc_debug_action = cmd_pmc_debug.add_argument_group(title='PMC debug command')
+        cmd_pmc_debug_action.add_argument(
+                '-c', '--command', action='store', type=str, dest='pmc_command', metavar="PMC COMMAND",
+                default=None,
+                help='send raw command to PMC')
         args = cmdparser.parse_args(argv[1:])
         
         log_level = logging.ERROR
@@ -462,6 +475,9 @@ class WdHwClient(object):
         
         elif args.command == "shutdown":
             conn.daemonShutdown()
+        
+        elif args.command == "pmc_debug":
+            conn.sendDebug(args.pmc_command)
         
         conn.close()
         

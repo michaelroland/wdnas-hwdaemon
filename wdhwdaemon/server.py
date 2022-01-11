@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Server.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ class CommandPacket(BasicPacket):
     CMD_DRIVE_PRESENT_GET = 0x0131
     CMD_DRIVE_ENABLED_SET = 0x0132
     CMD_DRIVE_ENABLED_GET = 0x0133
+    CMD_PMC_DEBUG = 0x01FF
     
     PACKET_MAGIC_BYTE = 0x0A5
     FLAGS_FIELD_SIZE = 1
@@ -339,6 +340,7 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_DRIVE_PRESENT_GET:           self.__commandDrivePresentGet,
                 CommandPacket.CMD_DRIVE_ENABLED_SET:           self.__commandDriveEnabledSet,
                 CommandPacket.CMD_DRIVE_ENABLED_GET:           self.__commandDriveEnabledGet,
+                CommandPacket.CMD_PMC_DEBUG:                   self.__commandPMCDebug,
         }
         super().__init__(listener, CommandPacket)
     
@@ -592,6 +594,11 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([mask])))
+    
+    def __commandPMCDebug(self, packet):
+        raw_command = packet.parameter.decode('ascii', 'ignore')
+        self.__hw_daemon.pmc.sendRaw(raw_command)
+        self.sendPacket(packet.createResponse())
 
 
 class WdHwServer(SocketListener):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital PMC Controller Interface Protocol Implementation.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1092,6 +1092,23 @@ class PMCCommands(PMCInterruptCallback):
             raise PMCUnexpectedResponseError("Response argument '{0}' "
                                              "does not match expected "
                                              "format".format(status_field))
+    
+    def sendRaw(self, raw_command):
+        """Send raw command.
+        
+        Args:
+            raw_command (str): Raw command.
+        
+        Returns:
+            str: Raw result.
+        """
+        try:
+            (cmd_code, separator, cmd_value) = raw_command.partition("=")
+            if len(separator) <= 0:
+                cmd_value = None
+            self.__processor.transceiveCommand(cmd_code, cmd_value)
+        except:
+            pass
     
     def interruptReceived(self):
         pass
