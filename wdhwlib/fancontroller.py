@@ -305,7 +305,7 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
                 Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_ALWAYS, None),
+                Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
         self.__dimm_index = dimm_index
@@ -338,7 +338,7 @@ class CPUTemperatureMonitor(ThermalConditionMonitor):
             10,
             5.0,
             [
-                Condition(FanController.LEVEL_NORMAL, Condition.COMPARISON_ALWAYS, None),
+                Condition(FanController.LEVEL_UNDER, Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
     
@@ -432,7 +432,7 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
                 Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,   37.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,    1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN,  1.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_ALWAYS, None),
+                Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_ALWAYS, None),
             ])
         self.__reader = temperature_reader
         self.__drive = drive
