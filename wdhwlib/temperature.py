@@ -35,7 +35,10 @@ _logger = logging.getLogger(__name__)
 _CPUINFO_FILENAME = "/proc/cpuinfo"
 _CPUINFO_REGEX_CORES = re.compile(r"^cpu\s+cores.*:\s*([0-9]+)\s*$")
 
-_CORETEMP_FILENAME_BASE = "/sys/class/hwmon/hwmon0/temp{0:d}_{1}"
+_CORETEMP_DEVICES_PATH = "/sys/class/hwmon"
+_CORETEMP_SENSORNAME_FILE = "name"
+_CORETEMP_SENSORNAME_VALUE = "coretemp"
+_CORETEMP_SENSOR_FILEBASE = "temp{0:d}_{1}"
 _CORETEMP_CORE_OFFSET = 2
 _CORETEMP_TYPE_JUNCTION_VALUE = "input"
 _CORETEMP_TYPE_JUNCTION_REGULAR_MAX = "max"
@@ -72,12 +75,16 @@ class TemperatureReader(object):
         super().__init__()
         self.__lock = threading.RLock()
         self.__running = False
+        self.__CORETEMP = None
+        self.__SMBUSDEV = None
     
     def connect(self):
         """Connect the temperature reader.
         """
         with self.__lock:
             if not self.__running:
+                self.__CORETEMP = self.__findCoreTempSensor()
+                self.__SMBUSDEV = self.__findMemorySMBusDevice()
                 self.__running = True
             else:
                 raise RuntimeError('connect called when temperature reader was already connected')
@@ -95,6 +102,32 @@ class TemperatureReader(object):
         with self.__lock:
             return self.__running
     
+    def __findCoreTempSensor(self):
+        """Find the coretemp sensor.
+        
+        Returns:
+            str: This method returns the file name template for the coretemp sensor value files.
+        """
+        for device in os.listdir(_CORETEMP_DEVICES_PATH):
+            device_abs = os.path.join(_CORETEMP_DEVICES_PATH, device)
+            if not os.path.isdir(device_abs):
+                continue
+            
+            name_file = os.path.join(device_abs, _CORETEMP_SENSORNAME_FILE)
+            if not os.path.isfile(name_file):
+                continue
+            try:
+                with open(name_file, 'rt', encoding='utf-8', errors='replace') as f:
+                    raw_value = f.readline()
+                    if _CORETEMP_SENSORNAME_VALUE not in raw_value:
+                        continue
+            except IOError as e:
+                continue
+            
+            return os.path.join(device_abs, _CORETEMP_SENSOR_FILEBASE)
+            
+        return None
+    
     def __readCoreTempValue(self, cpu_index, value_type):
         """Get the contents of a coretemp file.
         
@@ -105,8 +138,11 @@ class TemperatureReader(object):
         Returns:
             int: This method returns the raw value contained in the file.
         """
-        file_name = _CORETEMP_FILENAME_BASE.format(_CORETEMP_CORE_OFFSET + cpu_index,
-                                                   value_type)
+        if self.__CORETEMP is None:
+            return None
+        
+        file_name = self.__CORETEMP.format(_CORETEMP_CORE_OFFSET + cpu_index,
+                                           value_type)
         try:
             with open(file_name, 'rt', encoding='utf-8', errors='replace') as f:
                 raw_value = f.readline()
@@ -213,11 +249,11 @@ class TemperatureReader(object):
             return False
         return (crit_alarm != 0)
     
-    def __openMemorySMBusDevice(self):
-        """Open SMBus device for reading the memory temperature.
+    def __findMemorySMBusDevice(self):
+        """Find SMBus device for reading the memory temperature.
         
         Returns:
-            smbus.SMBus: The SMBus device object.
+            int: The SMBus device index.
         """
         for device in os.listdir(_SMBUS_DEVICES_PATH):
             device_abs = os.path.join(_SMBUS_DEVICES_PATH, device)
@@ -255,9 +291,20 @@ class TemperatureReader(object):
             match = _SMBUS_REGEX_DEVICEINDEX.match(device)
             if match is not None:
                 device_idx = int(match.group(1))
-                return smbus.SMBus(device_idx)
+                return device_idx
             
         return None
+    
+    def __openMemorySMBusDevice(self):
+        """Open SMBus device for reading the memory temperature.
+        
+        Returns:
+            smbus.SMBus: The SMBus device object.
+        """
+        if self.__SMBUSDEV is None:
+            return None
+        
+        return smbus.SMBus(self.__SMBUSDEV)
     
     def getMemoryTemperature(self, dimm_index):
         """Get the temperature of the memory DIMM.
