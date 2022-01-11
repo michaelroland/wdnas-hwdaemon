@@ -136,11 +136,11 @@ class WdHwConnector(BasicPacketClient):
         return LEDStatus(response)
     
     def setLCDBacklightIntensity(self, intensity):
-        response = self._executeCommand(CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_GET,
+        response = self._executeCommand(CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_SET,
                                         parameter=bytearray([intensity]))
     
     def getLCDBacklightIntensity(self):
-        response = self._executeCommand(CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_SET)
+        response = self._executeCommand(CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_GET)
         if len(response) > 0:
             return response[0]
         else:
