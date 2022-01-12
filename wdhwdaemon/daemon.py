@@ -450,7 +450,11 @@ class WdHwDaemon(object):
         """Initiate an immediate system shutdown."""
         _logger.info("%s: Initiating immediate system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "now"])
+        if not self.debug_mode:
+            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "now"])
+        else:
+            _logger.warning("%s: System shutdown not initiated in debug mode!",
+                            type(self).__name__)
     
     def initiateDelayedSystemShutdown(self, grace_period=60):
         """Initiate a delayed system shutdown.
@@ -462,13 +466,21 @@ class WdHwDaemon(object):
         _logger.info("%s: Scheduled system shutdown in %d minutes",
                      type(self).__name__,
                      grace_period)
-        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
+        if not self.debug_mode:
+            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
+        else:
+            _logger.warning("%s: System shutdown not scheduled in debug mode!",
+                            type(self).__name__)
     
     def cancelPendingSystemShutdown(self):
         """Cancel any pending system shutdown."""
         _logger.info("%s: Cancelling pending system shutdown",
                      type(self).__name__)
-        result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-c"])
+        if not self.debug_mode:
+            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-c"])
+        else:
+            _logger.warning("%s: System shutdown not scheduled in debug mode!",
+                            type(self).__name__)
     
     def notifySystemUp(self):
         """Notify hardware controller daemon start completed.
