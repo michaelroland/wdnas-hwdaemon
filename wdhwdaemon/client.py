@@ -94,13 +94,6 @@ class WdHwConnector(BasicPacketClient):
         response = self._executeCommand(CommandPacket.CMD_PMC_VERSION_GET)
         return response.decode('utf-8', 'ignore')
     
-    def getPMCStatus(self):
-        response = self._executeCommand(CommandPacket.CMD_PMC_STATUS_GET)
-        if len(response) > 0:
-            return response[0]
-        else:
-            raise ValueError("Invalid response format")
-    
     def setPMCConfiguration(self, config):
         response = self._executeCommand(CommandPacket.CMD_PMC_CONFIGURATION_SET,
                                         parameter=bytearray([config]))
@@ -112,10 +105,17 @@ class WdHwConnector(BasicPacketClient):
         else:
             raise ValueError("Invalid response format")
     
-    def getPMCDLB(self):
-        response = self._executeCommand(CommandPacket.CMD_PMC_DLB_GET)
+    def getPowerSupplyBootupStatus(self):
+        response = self._executeCommand(CommandPacket.CMD_POWERSUPPLY_BOOTUP_STATUS_GET)
         if len(response) > 0:
-            return response[0]
+            return [False if s == 0 else True for s in response]
+        else:
+            raise ValueError("Invalid response format")
+    
+    def getPowerSupplyStatus(self):
+        response = self._executeCommand(CommandPacket.CMD_POWERSUPPLY_STATUS_GET)
+        if len(response) > 0:
+            return [False if s == 0 else True for s in response]
         else:
             raise ValueError("Invalid response format")
     
@@ -166,6 +166,13 @@ class WdHwConnector(BasicPacketClient):
         else:
             raise ValueError("Invalid response format")
     
+    def getFanTachoCount(self):
+        response = self._executeCommand(CommandPacket.CMD_FAN_TAC_GET)
+        if len(response) > 1:
+            return ((response[0] << 8) & 0x0FF00) | (response[1] & 0x0FF)
+        else:
+            raise ValueError("Invalid response format")
+    
     def setFanSpeed(self, speed):
         response = self._executeCommand(CommandPacket.CMD_FAN_SPEED_SET,
                                         parameter=bytearray([speed]))
@@ -193,6 +200,24 @@ class WdHwConnector(BasicPacketClient):
     
     def getDriveEnabledMask(self):
         response = self._executeCommand(CommandPacket.CMD_DRIVE_ENABLED_GET)
+        if len(response) > 0:
+            return response[0]
+        else:
+            raise ValueError("Invalid response format")
+    
+    def setDriveAlertLED(self, drive_bay, enable):
+        enable_val = 0
+        if enable:
+            enable_val = 1
+        response = self._executeCommand(CommandPacket.CMD_DRIVE_ALERT_LED_SET,
+                                        parameter=bytearray([drive_bay, enable_val]))
+    
+    def setDriveAlertLEDBlinkMask(self, mask):
+        response = self._executeCommand(CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_SET,
+                                        parameter=bytearray([mask]))
+    
+    def getDriveAlertLEDBlinkMask(self):
+        response = self._executeCommand(CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_GET)
         if len(response) > 0:
             return response[0]
         else:
@@ -334,6 +359,22 @@ class WdHwClient(object):
                 '-d', '--disable', action='store', type=int, dest='drivebay_disable', metavar="DRIVE_BAY",
                 default=None,
                 help='set drive bay number %(metavar)s disabled')
+        cmd_drive_action.add_argument(
+                '-a', '--alert', action='store', type=int, dest='drivebay_alert', metavar="DRIVE_BAY",
+                default=None,
+                help='enable alert LED for drive bay number %(metavar)s')
+        cmd_drive_action.add_argument(
+                '-b', '--alertblink', action='store', type=int, dest='drivebay_alertblink', metavar="DRIVE_BAY",
+                default=None,
+                help='blink alert LED for drive bay number %(metavar)s')
+        cmd_drive_action.add_argument(
+                '-n', '--noalert', action='store', type=int, dest='drivebay_noalert', metavar="DRIVE_BAY",
+                default=None,
+                help='disable alert LED for drive bay number %(metavar)s')
+        cmd_power = subparsers.add_parser('power', help='get power supply status command',
+                description="{}\npower: get power supply status command".format(wdhwdaemon.WDHWC_DESCRIPTION),
+                epilog=wdhwdaemon.WDHWD_EPILOG,
+                formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_shutdown = subparsers.add_parser('shutdown', help='daemon shutdown command',
                 description="{}\nshutdown: daemon shutdown command".format(wdhwdaemon.WDHWC_DESCRIPTION),
                 epilog=wdhwdaemon.WDHWD_EPILOG,
@@ -447,16 +488,18 @@ class WdHwClient(object):
         elif args.command == "fan":
             if args.get or (args.speed is None):
                 fan_rpm = conn.getFanRPM()
+                fan_tac = conn.getFanTachoCount()
                 fan_speed = conn.getFanSpeed()
                 print("Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed))
+                print("Fan tacho count: {0} pulses per second".format(fan_tac))
             else:
                 if (args.speed < 0) or (args.speed > 100):
                     cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
                 else:
                     conn.setFanSpeed(args.speed)
-
+        
         elif args.command == "lcd":
-            if args.get:
+            if args.get or ((args.text is None) and (args.backlight is None)):
                 backlight_intensity = conn.getLCDBacklightIntensity()
                 print("LCD backlight intensity: {0} %".format(backlight_intensity))
             else:
@@ -468,23 +511,9 @@ class WdHwClient(object):
                         cmdparser.error("Parameter BACKLIGHT is out of valid range (0 <= BACKLIGHT <= 100)")
                     else:
                         conn.setLCDBacklightIntensity(args.backlight)
-
+        
         elif args.command == "drive":
-            if args.get or ((args.drivebay_enable is None) and (args.drivebay_disable is None)):
-                present_mask = conn.getDrivePresentMask()
-                enabled_mask = conn.getDriveEnabledMask()
-                config_register = conn.getPMCConfiguration()
-                status_register = conn.getPMCStatus()
-                dlb = conn.getPMCDLB()
-                print("Automatic HDD power-up on presence detection: {0}".format(
-                        "on" if (config_register & 0x001) != 0 else "off"))
-                print("Drive bay\tDrive present\tDrive enabled")
-                for drive_bay in range(0, len(cfg.disk_drives)):
-                    print("{0:9d}\t{1:13}\t{2:13}".format(
-                            drive_bay,
-                            "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
-                            "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no"))
-            else:
+            if (args.drivebay_enable is not None) or (args.drivebay_disable is not None):
                 drive_bay = None
                 enabled = True
                 if args.drivebay_enable is not None:
@@ -493,12 +522,55 @@ class WdHwClient(object):
                 elif args.drivebay_disable is not None:
                     enabled = False
                     drive_bay = args.drivebay_disable
-                else:
-                    cmdparser.error("Must specify at least one drive command")
                 if drive_bay is not None:
                     conn.setDriveEnabled(drive_bay, enabled)
                 else:
                     cmdparser.error("Must specify at least one drive command")
+            elif (args.drivebay_alert is not None) or (args.drivebay_alertblink is not None) or (args.drivebay_noalert is not None):
+                if args.drivebay_alert is not None:
+                    drive_bay = args.drivebay_alert
+                    alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                    alert_blink_mask &= ~(1<<drive_bay) & 0x00F
+                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                    conn.setDriveAlertLED(drive_bay, True)
+                elif args.drivebay_alertblink is not None:
+                    drive_bay = args.drivebay_alertblink
+                    conn.setDriveAlertLED(drive_bay, False)
+                    alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                    alert_blink_mask |= (1<<drive_bay) & 0x00F
+                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                elif args.drivebay_noalert is not None:
+                    drive_bay = args.drivebay_noalert
+                    alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                    alert_blink_mask &= ~(1<<drive_bay) & 0x00F
+                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                    conn.setDriveAlertLED(drive_bay, False)
+                else:
+                    cmdparser.error("Must specify at least one drive command")
+            else:
+                present_mask = conn.getDrivePresentMask()
+                enabled_mask = conn.getDriveEnabledMask()
+                alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                config_register = conn.getPMCConfiguration()
+                print("Automatic HDD power-up on presence detection: {0}".format(
+                        "on" if (config_register & 0x001) != 0 else "off"))
+                print("Drive bay\tDrive present\tDrive enabled\tAlert")
+                for drive_bay in range(0, len(cfg.disk_drives)):
+                    print("{0:9d}\t{1:13}\t{2:13}".format(
+                            drive_bay,
+                            "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
+                            "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no",
+                            "blinking" if (alert_blink_mask & (1<<drive_bay)) != 0 else "off" if (enabled_mask & (1<<(drive_bay+4))) != 0 else "on"))
+        
+        elif args.command == "power":
+            powersupply_bootup_status = conn.getPowerSupplyBootupStatus()
+            powersupply_status = conn.getPowerSupplyStatus()
+            print("Power supply\tCurrent state\tOn bootup")
+            for powersupply in range(0, len(cfg.disk_drives)):
+                print("{0:12d}\t{1:12}\t{2:12}".format(
+                        powersupply + 1,
+                        "connected" if powersupply_bootup_status[powersupply] else "disconnected",
+                        "connected" if powersupply_status[powersupply] else "disconnected"))
         
         elif args.command == "temperature":
             pmc_temperature = conn.getPMCTemperature()

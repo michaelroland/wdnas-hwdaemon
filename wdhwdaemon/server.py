@@ -62,10 +62,10 @@ class CommandPacket(BasicPacket):
     CMD_DAEMON_SHUTDOWN = 0xFF01
     # PMC manager commands
     CMD_PMC_VERSION_GET = 0x0101
-    CMD_PMC_STATUS_GET = 0x0103
     CMD_PMC_CONFIGURATION_SET = 0x0104
     CMD_PMC_CONFIGURATION_GET = 0x0105
-    CMD_PMC_DLB_GET = 0x010B
+    CMD_POWERSUPPLY_BOOTUP_STATUS_GET = 0x0107
+    CMD_POWERSUPPLY_STATUS_GET = 0x0109
     CMD_POWER_LED_SET = 0x0110
     CMD_POWER_LED_GET = 0x0111
     CMD_USB_LED_SET = 0x0112
@@ -77,9 +77,13 @@ class CommandPacket(BasicPacket):
     CMD_FAN_RPM_GET = 0x0123
     CMD_FAN_SPEED_SET = 0x0124
     CMD_FAN_SPEED_GET = 0x0125
+    CMD_FAN_TAC_GET = 0x0127
     CMD_DRIVE_PRESENT_GET = 0x0131
     CMD_DRIVE_ENABLED_SET = 0x0132
     CMD_DRIVE_ENABLED_GET = 0x0133
+    CMD_DRIVE_ALERT_LED_SET = 0x0134
+    CMD_DRIVE_ALERT_LED_BLINK_SET = 0x0136
+    CMD_DRIVE_ALERT_LED_BLINK_GET = 0x0137
     CMD_PMC_DEBUG = 0x01FF
     
     PACKET_MAGIC_BYTE = 0x0A5
@@ -317,30 +321,34 @@ class ServerThreadImpl(PacketServerThread):
         self.__hw_daemon = listener.hw_daemon
         self.__COMMANDS = {
                 # General commands
-                CommandPacket.CMD_VERSION_GET:                 self.__commandVersionGet,
+                CommandPacket.CMD_VERSION_GET:                    self.__commandVersionGet,
                 # Service administration commands
-                CommandPacket.CMD_DAEMON_SHUTDOWN:             self.__commandDaemonShutdown,
+                CommandPacket.CMD_DAEMON_SHUTDOWN:                self.__commandDaemonShutdown,
                 # PMC manager commands
-                CommandPacket.CMD_PMC_VERSION_GET:             self.__commandPMCVersionGet,
-                CommandPacket.CMD_PMC_STATUS_GET:              self.__commandPMCStatusGet,
-                CommandPacket.CMD_PMC_CONFIGURATION_SET:       self.__commandPMCConfigurationSet,
-                CommandPacket.CMD_PMC_CONFIGURATION_GET:       self.__commandPMCConfigurationGet,
-                CommandPacket.CMD_PMC_DLB_GET:                 self.__commandPMCDLBGet,
-                CommandPacket.CMD_POWER_LED_SET:               self.__commandPowerLEDSet,
-                CommandPacket.CMD_POWER_LED_GET:               self.__commandPowerLEDGet,
-                CommandPacket.CMD_USB_LED_SET:                 self.__commandUSBLEDSet,
-                CommandPacket.CMD_USB_LED_GET:                 self.__commandUSBLEDGet,
-                CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_SET: self.__commandLCDBacklightIntensitySet,
-                CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_GET: self.__commandLCDBacklightIntensityGet,
-                CommandPacket.CMD_LCD_TEXT_SET:                self.__commandLCDTextSet,
-                CommandPacket.CMD_PMC_TEMPERATURE_GET:         self.__commandPMCTemperatureGet,
-                CommandPacket.CMD_FAN_RPM_GET:                 self.__commandFanRPMGet,
-                CommandPacket.CMD_FAN_SPEED_SET:               self.__commandFanSpeedSet,
-                CommandPacket.CMD_FAN_SPEED_GET:               self.__commandFanSpeedGet,
-                CommandPacket.CMD_DRIVE_PRESENT_GET:           self.__commandDrivePresentGet,
-                CommandPacket.CMD_DRIVE_ENABLED_SET:           self.__commandDriveEnabledSet,
-                CommandPacket.CMD_DRIVE_ENABLED_GET:           self.__commandDriveEnabledGet,
-                CommandPacket.CMD_PMC_DEBUG:                   self.__commandPMCDebug,
+                CommandPacket.CMD_PMC_VERSION_GET:                self.__commandPMCVersionGet,
+                CommandPacket.CMD_PMC_CONFIGURATION_SET:          self.__commandPMCConfigurationSet,
+                CommandPacket.CMD_PMC_CONFIGURATION_GET:          self.__commandPMCConfigurationGet,
+                CommandPacket.CMD_POWERSUPPLY_BOOTUP_STATUS_GET:  self.__commandPowerSupplyBootupStatusGet,
+                CommandPacket.CMD_POWERSUPPLY_STATUS_GET:         self.__commandPowerSupplyStatusGet,
+                CommandPacket.CMD_POWER_LED_SET:                  self.__commandPowerLEDSet,
+                CommandPacket.CMD_POWER_LED_GET:                  self.__commandPowerLEDGet,
+                CommandPacket.CMD_USB_LED_SET:                    self.__commandUSBLEDSet,
+                CommandPacket.CMD_USB_LED_GET:                    self.__commandUSBLEDGet,
+                CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_SET:    self.__commandLCDBacklightIntensitySet,
+                CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_GET:    self.__commandLCDBacklightIntensityGet,
+                CommandPacket.CMD_LCD_TEXT_SET:                   self.__commandLCDTextSet,
+                CommandPacket.CMD_PMC_TEMPERATURE_GET:            self.__commandPMCTemperatureGet,
+                CommandPacket.CMD_FAN_RPM_GET:                    self.__commandFanRPMGet,
+                CommandPacket.CMD_FAN_SPEED_SET:                  self.__commandFanSpeedSet,
+                CommandPacket.CMD_FAN_SPEED_GET:                  self.__commandFanSpeedGet,
+                CommandPacket.CMD_FAN_TAC_GET:                    self.__commandFanTACGet,
+                CommandPacket.CMD_DRIVE_PRESENT_GET:              self.__commandDrivePresentGet,
+                CommandPacket.CMD_DRIVE_ENABLED_SET:              self.__commandDriveEnabledSet,
+                CommandPacket.CMD_DRIVE_ENABLED_GET:              self.__commandDriveEnabledGet,
+                CommandPacket.CMD_DRIVE_ALERT_LED_SET:            self.__commandDriveAlertLEDSet,
+                CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_SET:      self.__commandDriveAlertLEDBlinkSet,
+                CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_GET:      self.__commandDriveAlertLEDBlinkGet,
+                CommandPacket.CMD_PMC_DEBUG:                      self.__commandPMCDebug,
         }
         super().__init__(listener, CommandPacket)
     
@@ -385,14 +393,6 @@ class ServerThreadImpl(PacketServerThread):
     def __commandPMCVersionGet(self, packet):
         self.sendPacket(packet.createResponse(self.__hw_daemon.pmc_version.encode('utf-8', 'ignore')))
     
-    def __commandPMCStatusGet(self, packet):
-        try:
-            status = self.__hw_daemon.pmc.getStatus()
-        except Exception:
-            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
-        else:
-            self.sendPacket(packet.createResponse(bytearray([status])))
-    
     def __commandPMCConfigurationSet(self, packet):
         if (packet.parameter is None) or (len(packet.parameter) != 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
@@ -411,13 +411,23 @@ class ServerThreadImpl(PacketServerThread):
         else:
             self.sendPacket(packet.createResponse(bytearray([cfg])))
     
-    def __commandPMCDLBGet(self, packet):
+    def __commandPowerSupplyBootupStatusGet(self, packet):
         try:
-            dlb = self.__hw_daemon.pmc.getDLB()
+            powersupply_state = self.__hw_daemon.getPowerSupplyBootupState()
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
-            self.sendPacket(packet.createResponse(bytearray([dlb])))
+            resp_packet = [1 if s else 0 for s in powersupply_state]
+            self.sendPacket(packet.createResponse(resp_packet))
+    
+    def __commandPowerSupplyStatusGet(self, packet):
+        try:
+            powersupply_state = self.__hw_daemon.getPowerSupplyState()
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            resp_packet = [1 if s else 0 for s in powersupply_state]
+            self.sendPacket(packet.createResponse(resp_packet))
     
     def __commandPowerLEDSet(self, packet):
         try:
@@ -549,6 +559,14 @@ class ServerThreadImpl(PacketServerThread):
         else:
             self.sendPacket(packet.createResponse(bytearray([(rpm >> 8) & 0x0FF, rpm & 0x0FF])))
     
+    def __commandFanTACGet(self, packet):
+        try:
+            tac = self.__hw_daemon.pmc.getFanTachoCount()
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([(tac >> 8) & 0x0FF, tac & 0x0FF])))
+    
     def __commandFanSpeedSet(self, packet):
         if (packet.parameter is None) or (len(packet.parameter) != 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
@@ -590,6 +608,36 @@ class ServerThreadImpl(PacketServerThread):
     def __commandDriveEnabledGet(self, packet):
         try:
             mask = self.__hw_daemon.pmc.getDriveEnabledMask()
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([mask])))
+    
+    def __commandDriveAlertLEDSet(self, packet):
+        if (packet.parameter is None) or (len(packet.parameter) != 2):
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        try:
+            bay_number = packet.parameter[0]
+            enable = packet.parameter[1] != 0
+            mask = self.__hw_daemon.pmc.setDriveEnabled(bay_number, enable)
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse())
+    
+    def __commandDriveAlertLEDBlinkSet(self, packet):
+        if (packet.parameter is None) or (len(packet.parameter) != 1):
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
+        try:
+            mask = self.__hw_daemon.pmc.setDriveAlertLEDBlinkMask(parameter[0])
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse())
+    
+    def __commandDriveAlertLEDBlinkGet(self, packet):
+        try:
+            mask = self.__hw_daemon.pmc.getDriveAlertLEDBlinkMask()
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:

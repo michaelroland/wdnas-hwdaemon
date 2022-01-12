@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Daemon.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -318,6 +318,7 @@ class WdHwDaemon(object):
         self.__cfg = None
         self.__pmc = None
         self.__pmc_version = ""
+        self.__pmc_initial_status = 0
         self.__pmc_status = 0
         self.__pmc_drive_presence_mask = 0
         self.__temperature_reader = None
@@ -416,6 +417,28 @@ class WdHwDaemon(object):
         self.__pmc.setLEDStatus(status | wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDBlink(blink | wdpmcprotocol.PMC_LED_POWER_RED)
     
+    def getPowerSupplyState(self):
+        """Get the current power supply state.
+        
+        Returns:
+            list(bool): The power supply state.
+        """
+        return [
+            (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_1_STATE_CHANGED) != 0,
+            (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0,
+        ]
+    
+    def getPowerSupplyBootupState(self):
+        """Get the bootup power supply state.
+        
+        Returns:
+            list(bool): The power supply state.
+        """
+        return [
+            (self.__pmc_initial_status & wdpmcprotocol.PMC_INTERRUPT_POWER_1_STATE_CHANGED) != 0,
+            (self.__pmc_initial_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0,
+        ]
+    
     def initiateImmediateSystemShutdown(self):
         """Initiate an immediate system shutdown."""
         _logger.info("%s: Initiating immediate system shutdown",
@@ -512,6 +535,36 @@ class WdHwDaemon(object):
                                       state="1" if powered_up else "0"))
             result = subprocess.call(cmd)
     
+    def notifyUSBCopyButton(self, down_up):
+        """Notify change of USB copy button pressed state.
+        
+        Args:
+            down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
+        """
+        _logger.info("%s: USB copy button pressed state changed for to %s",
+                     type(self).__name__,
+                     "pressed" if down_up else "released")
+    
+    def notifyLCDUpButton(self, down_up):
+        """Notify change of LCD up button pressed state.
+        
+        Args:
+            down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
+        """
+        _logger.info("%s: LCD up button pressed state changed for to %s",
+                     type(self).__name__,
+                     "pressed" if down_up else "released")
+    
+    def notifyLCDDownButton(self, down_up):
+        """Notify change of LCD down button pressed state.
+        
+        Args:
+            down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
+        """
+        _logger.info("%s: LCD down button pressed state changed for to %s",
+                     type(self).__name__,
+                     "pressed" if down_up else "released")
+    
     def receivedPMCInterrupt(self, isr):
         """Notify reception of a pending PMC interrupt.
         
@@ -519,10 +572,8 @@ class WdHwDaemon(object):
             isr (int): The interrupt status register value.
         """
         if isr != self.__pmc_status:
-            # toggle recorded power adapter state (except upon initial interrupt)
-            power_status_mask = (wdpmcprotocol.PMC_STATUS_POWER_1_UP |
-                                 wdpmcprotocol.PMC_STATUS_POWER_2_UP)
-            self.__pmc_status ^= isr & power_status_mask
+            # toggle recorded PMC status (except upon initial interrupt)
+            self.__pmc_status ^= isr
         
         # test for drive presence changes
         if (isr & wdpmcprotocol.PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED) != 0:
@@ -541,6 +592,17 @@ class WdHwDaemon(object):
         if (isr & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0:
             power_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_POWER_2_STATE_CHANGED) != 0
             self.notifyPowerSupplyChanged(2, power_up)
+        
+        # test for button presses
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_USB_COPY_BUTTON) != 0:
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_USB_COPY_BUTTON) != 0
+            self.notifyUSBCopyButton(down_up)
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_LCD_UP_BUTTON) != 0:
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_UP_BUTTON) != 0
+            self.notifyLCDUpButton(down_up)
+        if (isr & wdpmcprotocol.PMC_INTERRUPT_LCD_DOWN_BUTTON) != 0:
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_DOWN_BUTTON) != 0
+            self.notifyLCDDownButton(down_up)
     
     def _resolveUserInfo(self, user):
         """Resolve the user information for a given user name or ID.
@@ -955,7 +1017,8 @@ class WdHwDaemon(object):
                          type(self).__name__,
                          pmc_version)
             
-            self.__pmc_status = pmc.getStatus()
+            self.__pmc_initial_status = pmc.getStatus()
+            self.__pmc_status = self.__pmc_initial_status
             self.__pmc_drive_presence_mask = pmc.getDrivePresenceMask()
             
             if cfg.pmc_test_mode:
@@ -968,10 +1031,11 @@ class WdHwDaemon(object):
                 pmc.getPowerLEDPulse()
                 pmc.getLCDBacklightIntensity()
                 pmc.getFanRPM()
+                pmc.getFanTachoCount()
                 pmc.getFanSpeed()
                 pmc.getDriveEnabledMask()
                 pmc.getDrivePresenceMask()
-                pmc.getDLB()
+                pmc.getDriveAlertLEDBlinkMask()
             
             _logger.debug("%s: Enabling all PMC interrupts",
                           type(self).__name__)

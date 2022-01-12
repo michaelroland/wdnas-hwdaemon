@@ -84,6 +84,10 @@ PMC_INTERRUPT_MASK_ALL               = 0b11111111
 PMC_INTERRUPT_POWER_2_STATE_CHANGED  = 0b00000010
 PMC_INTERRUPT_POWER_1_STATE_CHANGED  = 0b00000100
 PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED = 0b00010000
+PMC_INTERRUPT_USB_COPY_BUTTON        = 0b00001000
+PMC_INTERRUPT_LCD_UP_BUTTON          = 0b00100000
+PMC_INTERRUPT_LCD_DOWN_BUTTON        = 0b01000000
+PMC_INTERRUPT_ECHO                   = 0b10000000
 
 #PMC power-up status
 PMC_STATUS_POWER_2_UP = 0b00000010
@@ -414,7 +418,7 @@ class PMCCommands(PMCInterruptCallback):
         
         Returns:
             str: This method returns the full version string (which is expected to
-            be in the format r"WD PMC v\d+").
+            be in the format r"WD PMC v\d+" or r"WD BBC v\d+").
         
         Raises:
             PMCCommandRejectedException: If the PMC refused the command with
@@ -425,10 +429,10 @@ class PMCCommands(PMCInterruptCallback):
                 match the sent command.
         """
         # Command: VER
-        # Response: VER=WD PMC v[[:digit:]]+
+        # Response: VER=WD (PMC|BBC) v[[:digit:]]+
         #   - Observed values:
-        #       - on DL2100 (always): "WD PMC v17"
-        #       - on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250): "WD BBC v01"
+        #       - on DL2100: "WD PMC v17"
+        #       - on PR4100: "WD BBC v02"
         return self.__processor.transceiveCommand(_PMC_COMMAND_VERSION)
     
     def getConfiguration(self):
@@ -479,8 +483,6 @@ class PMCCommands(PMCInterruptCallback):
         #       - Bit 0: automatic HDD power enable based on presence detection
         #       - Bit 1: ??? (set upon power-up)
         #       - Bit 2-7: ??? (cleared upon power-up)
-        #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
-        #       - "2"
         # Response: ACK | ERR
         configuration_mask = configuration
         configuration_field = "{0:02X}".format(configuration_mask & 0x0FF)
@@ -806,12 +808,9 @@ class PMCCommands(PMCInterruptCallback):
         #       - 1 -> first line
         #       - 2 -> second line
         #   - Parameter (n bytes): n characters of US-ASCII text (n <= 16).
-        #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
+        #   - Default values on PR4100:
         #       - "LN1=Welcome to WD   "
         #       - "LN2=My Cloud PR4100 "
-        #   - Tested values (by https://community.wd.com/u/Tfl on PR4100):
-        #       - "LN1=Look hot"
-        #       - "LN2=Stay cool"
         # Response: ACK | ERR
         if line < 1:
             line = 1
@@ -958,14 +957,14 @@ class PMCCommands(PMCInterruptCallback):
         #       - Drives in both bays powered-up: "f3"
         #       - Value changes as a result of DLS/DLC
         #   - Interpretation: bitmask (1 byte) for drive bay power state (lower nibble) and alert LED (red) state (upper nibble)
-        #       - Bit 0: set when drive in bay 0 (right on DL2100) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
-        #       - Bit 1: set when drive in bay 1 (left on DL2100) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
-        #       - Bit 2: set when drive in bay 2 (on 4-bay versions?) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
-        #       - Bit 3: set when drive in bay 3 (on 4-bay versions?) is powered-up, cleared when drive is absent or powered-down (also indicated by blue drive bay power LED)
-        #       - Bit 4: set when drive bay 0 (right on DL2100) alert LED (red) is off, cleared when drive bay alert LED (red) is on
-        #       - Bit 5: set when drive bay 1 (left on DL2100) alert LED (red) is off, cleared when drive bay alert LED (red) is on
-        #       - Bit 6: set when drive bay 2 (on 4-bay versions?) alert LED (red) is off, cleared when drive bay alert LED (red) is on
-        #       - Bit 7: set when drive bay 3 (on 4-bay versions?) alert LED (red) is off, cleared when drive bay alert LED (red) is on
+        #       - Bit 0: Set when drive in bay 0 (right on DL2100, left on PR4100) is powered up, cleared when drive is absent or powered down (also indicated by blue drive bay power LED).
+        #       - Bit 1: Set when drive in bay 1 (left on DL2100) is powered up, cleared when drive is absent or powered down (also indicated by blue drive bay power LED).
+        #       - Bit 2: Set when drive in bay 2 is powered up, cleared when drive is absent or powered down (also indicated by blue drive bay power LED).
+        #       - Bit 3: Set when drive in bay 3 (right on PR4100) is powered up, cleared when drive is absent or powered down (also indicated by blue drive bay power LED).
+        #       - Bit 4: Set when drive alert LED (red) for bay 0 (right on DL2100, left on PR4100) is off, cleared when alert LED is on.
+        #       - Bit 5: Set when drive alert LED (red) for bay 1 (left on DL2100) is off, cleared when alert LED is on.
+        #       - Bit 6: Set when drive alert LED (red) for bay 2 is off, cleared when alert LED is on.
+        #       - Bit 7: Set when drive alert LED (red) for bay 3 (right on PR4100) is off, cleared when alert LED is on.
         #   - Note: DE0=xx may be used to directly set drive bay power-up and LED status, DLS/DLC make bitwise modifications
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_ENABLED)
         match = _PMC_REGEX_NUMBER_HEX.match(status_field)
@@ -999,14 +998,11 @@ class PMCCommands(PMCInterruptCallback):
         #       - Drives in both bays inserted: "8c"
         #       - Value does NOT change as a result of DLS/DLC
         #   - Interpretation: bitmask (1 byte) for drive bays
-        #       - Bit 0: cleared when drive in bay 0 (right on DL2100) is present, set when drive is absent
-        #       - Bit 1: cleared when drive in bay 1 (left on DL2100) is present, set when drive is absent
-        #       - Bit 2: cleared when drive in bay 2 (on 4-bay versions?) is present, set when drive is absent
-        #       - Bit 3: cleared when drive in bay 3 (on 4-bay versions?) is present, set when drive is absent
-        #       - Bit 4: ???
-        #           - always observed as cleared on DL2100
-        #           - always observed as set on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250)
-        #           - May indicate 2-bay (cleared) vs. 4-bay (set)?
+        #       - Bit 0: Cleared when drive in bay 0 (right on DL2100, left on PR4100) is present, set when drive is absent
+        #       - Bit 1: Cleared when drive in bay 1 (left on DL2100) is present, set when drive is absent
+        #       - Bit 2: Cleared when drive in bay 2 is present, set when drive is absent (always set on DL2100)
+        #       - Bit 3: Cleared when drive in bay 3 (right on PR4100) is present, set when drive is absent (always set on DL2100)
+        #       - Bit 4: 4-bay indicator (set if 4 bays exist, cleared if only 2 bays exist)
         #       - Bit 5-6: ??? (always observed as cleared)
         #       - Bit 7: ??? (always observed as set)
         status_field = self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_DRIVE_PRESENT)
@@ -1042,10 +1038,10 @@ class PMCCommands(PMCInterruptCallback):
         if enable:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power on)
-            #       - 0b00000001: Bay 0 (right on DL2100)
+            #       - 0b00000001: Bay 0 (right on DL2100, left on PR4100)
             #       - 0b00000010: Bay 1 (left on DL2100)
-            #       - 0b00000100: Bay 2 (on 4-bay versions?)
-            #       - 0b00001000: Bay 3 (on 4-bay versions?)
+            #       - 0b00000100: Bay 2
+            #       - 0b00001000: Bay 3 (right on PR4100)
             #       - Bits 4-7: see setDriveAlertLED()
             #   - Sets the specified bits in DE0
             # Response: ACK | ERR
@@ -1054,10 +1050,7 @@ class PMCCommands(PMCInterruptCallback):
         else:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power off)
-            #       - 0b00000001: Bay 0 (right on DL2100)
-            #       - 0b00000010: Bay 1 (left on DL2100)
-            #       - 0b00000100: Bay 2 (on 4-bay versions?)
-            #       - 0b00001000: Bay 3 (on 4-bay versions?)
+            #       - Bits 0-3: see above
             #       - Bits 4-7: see setDriveAlertLED()
             #   - Clears the specified bits in DE0
             # Response: ACK | ERR
@@ -1087,34 +1080,21 @@ class PMCCommands(PMCInterruptCallback):
         if enable:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLC turns LED on)
-            #       - 0b00010000: Bay 0 (right on DL2100)
+            #       - 0b00010000: Bay 0 (right on DL2100, left on PR4100)
             #       - 0b00100000: Bay 1 (left on DL2100)
-            #       - 0b01000000: Bay 2 (on 4-bay versions?)
-            #       - 0b10000000: Bay 3 (on 4-bay versions?)
+            #       - 0b01000000: Bay 2
+            #       - 0b10000000: Bay 3 (right on PR4100)
             #       - Bits 0-3: see setDriveEnabled()
             #   - Clears the specified bits in DE0
-            #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
-            #       - "10"
-            #       - "20"
-            #       - "40"
-            #       - "80"
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
                                                drivebay_mask_field)
         else:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLS turns LED off)
-            #       - 0b00010000: Bay 0 (right on DL2100)
-            #       - 0b00100000: Bay 1 (left on DL2100)
-            #       - 0b01000000: Bay 2 (on 4-bay versions?)
-            #       - 0b10000000: Bay 3 (on 4-bay versions?)
             #       - Bits 0-3: see setDriveEnabled()
+            #       - Bits 4-7: see above
             #   - Sets the specified bits in DE0
-            #   - Observed values on PR4100 (according to https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/252):
-            #       - "10"
-            #       - "20"
-            #       - "40"
-            #       - "80"
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
                                                drivebay_mask_field)
@@ -1168,10 +1148,10 @@ class PMCCommands(PMCInterruptCallback):
         # Command: DLB=%X
         #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red)
         #       - Bit 0-3: not used? (always observed as cleared)
-        #       - Bit 4: drive bay 0 (right on DL2100) alert LED (red) blinking state (1 = blinking, 0 = off)
-        #       - Bit 5: drive bay 1 (left on DL2100) alert LED (red) blinking state (1 = blinking, 0 = off)
-        #       - Bit 6: drive bay 2 (on 4-bay versions?) alert LED (red) blinking state (1 = blinking, 0 = off)
-        #       - Bit 7: drive bay 3 (on 4-bay versions?) alert LED (red) blinking state (1 = blinking, 0 = off)
+        #       - Bit 4: Set when drive alert LED (red) for bay 0 (right on DL2100, left on PR4100) is blinking, cleared when alert LED is off/not blinking.
+        #       - Bit 5: Set when drive alert LED (red) for bay 1 (left on DL2100) is blinking, cleared when alert LED is off/not blinking.
+        #       - Bit 6: Set when drive alert LED (red) for bay 2 is blinking, cleared when alert LED is off/not blinking.
+        #       - Bit 7: Set when drive alert LED (red) for bay 3 (right on PR4100) is blinking, cleared when alert LED is off/not blinking.
         # Response: ACK | ERR
         status_field = "{0:02X}".format((blink_mask << 4) & 0x0F0)
         self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_LED_BLINK,
@@ -1224,7 +1204,7 @@ class PMCCommands(PMCInterruptCallback):
         #           - After unplugging or (re-)plugging power adapter (at socket 2) while powered on: "02"
         #           - After inserting or removing any drive: "10"
         #           - After pressing or releasing USB copy button: "08"
-        #   - Observed values on PR4100 (https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250):
+        #   - Observed values on PR4100:
         #       - USB copy button pressed: "08"
         #       - LCD up button pressed: "20"
         #       - LCD down button pressed: "40"
