@@ -348,8 +348,13 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_DRIVE_ALERT_LED_SET:            self.__commandDriveAlertLEDSet,
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_SET:      self.__commandDriveAlertLEDBlinkSet,
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_GET:      self.__commandDriveAlertLEDBlinkGet,
-                CommandPacket.CMD_PMC_DEBUG:                      self.__commandPMCDebug,
         }
+        if self.__hw_daemon.debug_mode:
+            self.__COMMANDS.update({
+                # PMC manager debug commands
+                CommandPacket.CMD_PMC_DEBUG:                      self.__commandPMCDebug,
+            })
+            
         super().__init__(listener, CommandPacket)
     
     def connectionOpened(self, remote_socket, remote_address):

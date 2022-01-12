@@ -317,6 +317,7 @@ class WdHwDaemon(object):
         self.__shutdown_condition = threading.Condition()
         self.__running = False
         self.__cfg = None
+        self.__debug_mode = False
         self.__pmc = None
         self.__pmc_version = ""
         self.__pmc_initial_status = 0
@@ -347,6 +348,11 @@ class WdHwDaemon(object):
         """bool: Is daemon in running state?"""
         with self.__lock:
             return self.__running
+    
+    @property
+    def debug_mode(self):
+        """bool: Is debug mode enabled?"""
+        return self.__debug_mode
     
     @property
     def pmc(self):
@@ -779,10 +785,16 @@ class WdHwDaemon(object):
                 '-q', '--quiet', action='store_true',
                 help='disables console logging output')
         cmdparser.add_argument(
+                '-d', '--debug', action='store_true',
+                help='enables debug mode commands')
+        cmdparser.add_argument(
                 '-V', '--version', action='version',
                 version=wdhwdaemon.WDHWD_VERSION,
                 help='show version information and exit')
         args = cmdparser.parse_args(argv[1:])
+        
+        if args.debug:
+            self.__debug_mode = True
         
         log_level = logging.ERROR
         if args.verbose > 3:
