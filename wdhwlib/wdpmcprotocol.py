@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import logging
+import os
+import os.path
 import re
 import serial
 import threading
@@ -35,8 +37,13 @@ _logger = logging.getLogger(__name__)
 
 
 # PMC serial interface configuration
-PMC_UART_PORT_DEFAULT = "/dev/ttyS0"
+# on DL2100/DL4100: PMC_UART_PORT_DEFAULT = "/dev/ttyS0"
 # on PR2100/PR4100: PMC_UART_PORT_DEFAULT = "/dev/ttyS2"
+_PMC_UART_DEVICES_PATH = "/sys/class/tty"
+_PMC_UART_DEVICETYPE_FILE = "type"
+_PMC_UART_DEVICETYPE_VALUE = 4  # PORT_16550A
+_PMC_UART_DEVICECONSOLE_FILE = "console"
+_PMC_UART_DEVICECONSOLE_VALUE = "N"  # not an active serial console
 _PMC_UART_BAUDRATE = 9600
 _PMC_UART_DATABITS = serial.EIGHTBITS
 _PMC_UART_PARITY = serial.PARITY_NONE
@@ -373,25 +380,98 @@ class PMCCommands(PMCInterruptCallback):
         super().__init__()
         self.__lock = threading.RLock()
         self.__running = False
+        self.__port_name = None
     
-    def connect(self, port_name=PMC_UART_PORT_DEFAULT):
+    def __findSerialPorts(self):
+        """Find PMC serial port.
+        
+        Returns:
+            list(str): The serial port device node.
+        """
+        for device in os.listdir(_PMC_UART_DEVICES_PATH):
+            device_abs = os.path.join(_PMC_UART_DEVICES_PATH, device)
+            if not os.path.isdir(device_abs):
+                continue
+            
+            type_file = os.path.join(device_abs, _PMC_UART_DEVICETYPE_FILE)
+            if not os.path.isfile(type_file):
+                continue
+            try:
+                with open(type_file, 'rt', encoding='utf-8', errors='replace') as f:
+                    raw_value = f.readline()
+                    value = 0
+                    try:
+                        value = int(raw_value)
+                    except:
+                        pass
+                    if value != _PMC_UART_DEVICETYPE_VALUE:
+                        continue
+            except IOError as e:
+                continue
+            
+            console_file = os.path.join(device_abs, _PMC_UART_DEVICECONSOLE_FILE)
+            if not os.path.isfile(console_file):
+                continue
+            try:
+                with open(console_file, 'rt', encoding='utf-8', errors='replace') as f:
+                    raw_value = f.readline()
+                    raw_value = raw_value.upper()
+                    if _PMC_UART_DEVICECONSOLE_VALUE not in raw_value:
+                        continue
+            except IOError as e:
+                continue
+            
+            yield os.path.join("/dev/", device)
+    
+    def connect(self, port_name=None):
         """Connect to the PMC chip.
         
         Args:
-            port_name (str): The name of the serial port that the PMC is attached to.
+            port_name (str): The name of the serial port that the PMC is attached to
+                (leave empty or None to automatically discover the serial port).
         """
         with self.__lock:
             if not self.__running:
-                serial_port = serial.Serial(port = port_name,
-                                            baudrate = _PMC_UART_BAUDRATE,
-                                            bytesize = _PMC_UART_DATABITS,
-                                            parity = _PMC_UART_PARITY,
-                                            stopbits = _PMC_UART_STOPBITS)
-                self.__processor = PMCProcessor(PMCInterruptHandler(self))
-                self.__conn_manager = SerialConnectionManager(
-                        serial_port,
-                        self.__processor)
-                self.__running = True
+                port_names = [port_name]
+                if not port_name:
+                    port_names = self.__findSerialPorts()
+                for port in port_names:
+                    try:
+                        serial_port = serial.Serial(port = port_name,
+                                                    baudrate = _PMC_UART_BAUDRATE,
+                                                    bytesize = _PMC_UART_DATABITS,
+                                                    parity = _PMC_UART_PARITY,
+                                                    stopbits = _PMC_UART_STOPBITS)
+                    except serial.SerialException as e:
+                        continue
+                    self.__port_name = port
+                    self.__processor = PMCProcessor(PMCInterruptHandler(self))
+                    self.__conn_manager = SerialConnectionManager(
+                            serial_port,
+                            self.__processor)
+                    self.__running = True
+                    # ignore first invocation of getVersion to bring serial communication into
+                    # a well-known state (where the PMC expects the next command) in case of
+                    # previously interrupted communication
+                    try:
+                        self.getVersion()
+                    except:
+                        pass
+                    # the second invocation of getVersion must succeed if we communicate with
+                    # the actual PMC
+                    try:
+                        self.getVersion()
+                    except:
+                        self.__running = False
+                        self.__conn_manager.close()
+                        self.__processor = None
+                        self.__conn_manager = None
+                        self.__port_name = None
+                        continue
+                    else:
+                        break
+                if not self.__running:
+                    raise RuntimeError('connect failed, not a valid PMC port?')
             else:
                 raise RuntimeError('connect called when PMC interface was already connected')
     
@@ -406,6 +486,12 @@ class PMCCommands(PMCInterruptCallback):
                 self.__conn_manager.close()
                 self.__processor = None
                 self.__conn_manager = None
+    
+    @property
+    def port_name(self):
+        """str: PMC port name."""
+        with self.__lock:
+            return self.__port_name
     
     @property
     def is_running(self):

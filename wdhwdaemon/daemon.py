@@ -155,7 +155,8 @@ class ConfigFile(object):
     Attributes:
         user (str): User name or ID to drop privileges to during normal operation.
         group (str): Group name or ID to drop privileges to during normal operation.
-        pmc_port (str): Name of the serial port that the PMC is attached to.
+        pmc_port (str): Name of the serial port that the PMC is attached to (leave empty
+            for automatic discovery).
         pmc_test_mode (bool): Enable PMC protocol testing mode?
         disk_drives (List(str)): List of disk drives in the drive bays (in the order of
             PMC drive bay flags).
@@ -210,7 +211,7 @@ class ConfigFile(object):
         SECTION = "wdhwd"
         self.declareOption(SECTION, "user", default=wdhwdaemon.WDHWD_USER_DEFAULT)
         self.declareOption(SECTION, "group", default=None)
-        self.declareOption(SECTION, "pmc_port", default=wdpmcprotocol.PMC_UART_PORT_DEFAULT)
+        self.declareOption(SECTION, "pmc_port", default=None)
         self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
         self.declareOption(SECTION, "disk_drives", default=temperature.HDSMART_DISKS, parser=self.parseArray)
         self.declareOption(SECTION, "memory_dimms_count", default=2, parser=self.parseInteger)
@@ -1006,10 +1007,13 @@ class WdHwDaemon(object):
         try:
             _logger.debug("%s: Starting PMC manager for PMC at '%s'",
                           type(self).__name__,
-                          cfg.pmc_port)
+                          cfg.pmc_port if cfg.pmc_port else "[autodiscover]")
             pmc = PMCCommandsImpl(self)
             self.__pmc = pmc
             pmc.connect(cfg.pmc_port)
+            _logger.debug("%s: Connected to PMC at '%s'",
+                          type(self).__name__,
+                          pmc.port_name)
             
             pmc_version = pmc.getVersion()
             self.__pmc_version = pmc_version
