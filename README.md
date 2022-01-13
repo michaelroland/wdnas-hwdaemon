@@ -100,7 +100,7 @@ daemon, an appropriate service unit file needs to be installed.
 ## GET LATEST VERSION
 
 Find documentation and grab the latest version on GitHub
-<https://github.com/michaelroland/wdnas-dl2100-hwtools>
+<https://github.com/michaelroland/wdnas-hwdaemon>
 
 
 ## COPYRIGHT
