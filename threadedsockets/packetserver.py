@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Packet-based Server-side Socket Interface.
 
-Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2019 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,13 +26,13 @@ import threadedsockets.packets as packets
 import threadedsockets.socketserver as socketserver
 
 
-class PacketServerThread(socketserver.SocketServerThread):
+class PacketServerThread(socketserver.BinaryReceiverSocketServerThread):
     """Base class to send and receive packet-structured data using a ``socket.SocketType``.
     """
     
     MAX_RECEIVE_BUFFER_SIZE = 0x4000000
     
-    def __init__(self, listener, packet_class=packets.BasicPacket):
+    def __init__(self, listener, packet_class=packets.BasicPacket, options=None):
         """Initializes a new socket server thread that processes packet-structured data.
         
         Args:
@@ -41,7 +41,7 @@ class PacketServerThread(socketserver.SocketServerThread):
         """
         self.__read_buffer = bytearray()
         self.__packet_class = packet_class
-        super().__init__(listener)
+        super().__init__(listener, options)
     
     def connectionOpened(self, remote_socket, remote_address):
         raise SocketSecurityException("The default implementation refuses all connections.")

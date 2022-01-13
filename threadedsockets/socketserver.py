@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Thread-based Server-side Socket Interface.
 
-Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2019 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ _logger = logging.getLogger(__name__)
 
 
 class SocketServerThread(object):
-    """Base class to send and receive binary data using a ``socket.SocketType``.
+    """Base class to process incoming socket (``socket.SocketType``) connections.
     
     Attributes:
         is_busy: Is the socket connection busy with an active connection?
@@ -43,17 +43,18 @@ class SocketServerThread(object):
     
     __NEXT_THREAD_ID = 0
     
-    def __init__(self, listener):
+    def __init__(self, listener, options):
         """Initializes a new socket server thread.
         
         Args:
             listener (SocketListener): The parent socket listener instance.
+            options (dict): A set of options passed to the socket server thread.
         """
         super().__init__()
         self.__thread_id = SocketServerThread.__NEXT_THREAD_ID
         SocketServerThread.__NEXT_THREAD_ID += 1
-        self._BYTES_TO_READ = 4096
         self.__listener = listener
+        self.__options = options
         self.__socket_lock = threading.RLock()
         self.__socket = None
         self.__lock = threading.RLock()
@@ -79,6 +80,22 @@ class SocketServerThread(object):
         """
         raise SocketSecurityException("The default implementation refuses all connections.")
     
+    def connectionHandler(self, remote_socket, remote_address):
+        """Callback invoked once a remote socket connection is opened and ready for transmission.
+        
+        The default implementation does nothing and closes the connection. Implementations must override
+        this method to allow incoming connections.
+        
+        Args:
+            remote_socket (socket.SocketType): The remote socket.
+            remote_address (Any): The remote socket address (the exact type depends on
+                the address family).
+        
+        Raises:
+            SocketConnectionBrokenError: May raise a ``SocketConnectionBrokenError`` to indicate end of stream.
+        """
+        pass
+    
     def connectionClosed(self, error):
         """Callback invoked when the remote socket connection is closed.
         
@@ -87,41 +104,6 @@ class SocketServerThread(object):
                 ``Exception``.
         """
         pass
-    
-    def dataReceived(self, data):
-        """Callback for processing incoming data from the remote socket connection.
-        
-        This callback is invoked on the connection handler thread of ``SocketServerThread``.
-        Implementations must make sure that this thread is not extensively blocked due to
-        further processing of incoming data.
-        
-        Args:
-            data (bytearray): A byte array of received data.
-        """
-        pass
-    
-    def sendData(self, data):
-        """Send data over the remote socket connection.
-        
-        Args:
-            data (bytearray): A byte array of data to send.
-        
-        Raises:
-            socket.error: If sending failed.
-            SocketConnectionBrokenError: If sending failed and the send method did not
-                raise an exception.
-        """
-        with self.__socket_lock:
-            if self.__socket:
-                bytes_to_send = len(data)
-                offset = 0
-                while offset < bytes_to_send:
-                    bytes_sent = self.__socket.send(data[offset:])
-                    if bytes_sent > 0:
-                        offset += bytes_sent
-                    else:
-                        # no data received: connection broken?
-                        raise SocketConnectionBrokenError("socket.send() returned {0}".format(bytes_sent))
     
     def __run(self):
         """Runnable target of the server-side socket connection handler thread."""
@@ -145,15 +127,15 @@ class SocketServerThread(object):
                         _logger.debug("%s(%d): Starting server task",
                                       type(self).__name__,
                                       self.__thread_id)
-                        while self.__running:
-                            data = remote_socket.recv(self._BYTES_TO_READ)
-                            if data:
-                                self.dataReceived(data)
-                            else:
-                                # no data received: connection broken?
-                                raise SocketConnectionBrokenError()
+                        self.connectionHandler(remote_socket, remote_address)
                     except SocketConnectionBrokenError:
                         pass
+                    except SocketSecurityException as e:
+                        error = e
+                        _logger.error("%s(%d): %s",
+                                      type(self).__name__,
+                                      self.__thread_id,
+                                      e)
                     except Exception as e:
                         error = e
                     
@@ -189,11 +171,45 @@ class SocketServerThread(object):
                     pass
                 self.__socket.close()
     
+    def getOption(self, option_name):
+        if self.__options and option_name in self.__options:
+            return self.__options[option_name]
+        else:
+            return None
+    
     @property
     def _socket(self):
         """socket.SocketType: The current remote socket endpoint."""
         with self.__socket_lock:
             return self.__socket
+    
+    @property
+    def _running(self):
+        """bool: Is the socket connection handler thread in running state? (for use from handler thread)"""
+        return self.__running
+    
+    def sendData(self, data):
+        """Send binary data over the remote socket connection.
+        
+        Args:
+            data (bytearray): A byte array of data to send.
+        
+        Raises:
+            socket.error: If sending failed.
+            SocketConnectionBrokenError: If sending failed and the send method did not
+                raise an exception.
+        """
+        with self.__socket_lock:
+            if self.__socket:
+                bytes_to_send = len(data)
+                offset = 0
+                while offset < bytes_to_send:
+                    bytes_sent = self.__socket.send(data[offset:])
+                    if bytes_sent > 0:
+                        offset += bytes_sent
+                    else:
+                        # no data sent: connection broken?
+                        raise SocketConnectionBrokenError("socket.send() returned {0}".format(bytes_sent))
     
     @property
     def is_busy(self):
@@ -216,6 +232,42 @@ class SocketServerThread(object):
         return self.__thread_id
 
 
+class BinaryReceiverSocketServerThread(SocketServerThread):
+    """Base class to receive binary data using a ``socket.SocketType``.
+    """
+    
+    def __init__(self, listener, options):
+        """Initializes a new socket server thread.
+        
+        Args:
+            listener (SocketListener): The parent socket listener instance.
+            options (dict): A set of options passed to the socket server thread.
+        """
+        super().__init__(listener, options)
+        self._BYTES_TO_READ = 4096
+    
+    def dataReceived(self, data):
+        """Callback for processing incoming data from the remote socket connection.
+        
+        This callback is invoked on the connection handler thread of ``SocketServerThread``.
+        Implementations must make sure that this thread is not extensively blocked due to
+        further processing of incoming data.
+        
+        Args:
+            data (bytearray): A byte array of received data.
+        """
+        pass
+    
+    def connectionHandler(self, remote_socket, remote_address):
+        while self._running:
+            data = remote_socket.recv(self._BYTES_TO_READ)
+            if data:
+                self.dataReceived(data)
+            else:
+                # no data received: connection broken?
+                raise SocketConnectionBrokenError()
+
+
 class SocketListener(object):
     """A server socket listener that spawns new threads for incoming connections.
     
@@ -223,7 +275,7 @@ class SocketListener(object):
         is_running: Is the server-side socket handler thread in running state?
     """
 
-    def __init__(self, server_socket, max_clients=10, server_thread_class=SocketServerThread):
+    def __init__(self, server_socket, max_clients=10, server_thread_class=SocketServerThread, server_thread_options=None):
         """Initializes a new server socket listener.
         
         Args:
@@ -236,6 +288,7 @@ class SocketListener(object):
         if not issubclass(server_thread_class, SocketServerThread):
             raise TypeError("'server_thread_class' is not a subclass of SocketServerThread")
         self.__server_thread_class = server_thread_class
+        self.__server_thread_options = server_thread_options
         self.__lock = threading.RLock()
         self.__running = True
         self.__socket_lock = threading.RLock()
@@ -254,7 +307,7 @@ class SocketListener(object):
         Returns:
             SocketServerThread: A new socket connection handler thread object.
         """
-        return self.__server_thread_class(self)
+        return self.__server_thread_class(self, self.__server_thread_options)
     
     def __runListener(self):
         """Runnable target of the listening server thread."""
