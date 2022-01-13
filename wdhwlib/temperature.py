@@ -46,15 +46,14 @@ _CORETEMP_TYPE_JUNCTION_CRITICAL_MAX = "crit"
 _CORETEMP_TYPE_ALARM = "crit_alarm"
 _CORETEMP_REGEX_VALUE = re.compile(r"^([0-9]+)[^0-9]*$")
 
-_SMBUS_DEVICES_PATH = "/sys/class/i2c-dev"
-_SMBUS_REGEX_DEVICEINDEX = re.compile(r"^i2c-([0-9]+)$")
-_SMBUS_REGEX_HEXID = re.compile(r"^\s*0x([0-9a-f]+)\s*$")
-_SMBUS_VENDORID_FILE = "device/device/vendor"
-_SMBUS_DEVICEID_FILE = "device/device/device"
-_SMBUS_MEMORY_SPD_VENDORID = "8086"
-_SMBUS_MEMORY_SPD_DEVICEID = "1f3c"
+_SMBUS_DEVICES_PATH = "/sys/bus/i2c/devices"
+_SMBUS_REGEX_DEVICENAME = re.compile(r"^([0-9]+)-([0-9a-fA-F]+)$")
+_SMBUS_DEVICENAME_FILE = "name"
+_SMBUS_DEVICENAME_VALUE = "spd"
 _SMBUS_MEMORY_SPD_EEPROM_ADDRESS = 0x50
+_SMBUS_MEMORY_SPD_EEPROM_FILE = "eeprom"
 _SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR = 32
+_SMBUS_MEMORY_SPD_EEPROM_FLAG_TEMPSENSOR = 0x080
 _SMBUS_MEMORY_SPD_TEMP_ADDRESS = 0x18
 _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE = 5
 
@@ -76,7 +75,6 @@ class TemperatureReader(object):
         self.__lock = threading.RLock()
         self.__running = False
         self.__CORETEMP = None
-        self.__SMBUSDEV = None
     
     def connect(self):
         """Connect the temperature reader.
@@ -84,7 +82,6 @@ class TemperatureReader(object):
         with self.__lock:
             if not self.__running:
                 self.__CORETEMP = self.__findCoreTempSensor()
-                self.__SMBUSDEV = self.__findMemorySMBusDevice()
                 self.__running = True
             else:
                 raise RuntimeError('connect called when temperature reader was already connected')
@@ -249,80 +246,61 @@ class TemperatureReader(object):
             return False
         return (crit_alarm != 0)
     
-    def __findMemorySMBusDevice(self):
-        """Find SMBus device for reading the memory temperature.
+    def findMemoryTemperatureSensors(self):
+        """Find SMBus devices for reading the memory temperature.
         
         Returns:
-            int: The SMBus device index.
+            list(tuple(int, int)): A list of SMBus devices and DIMM indices.
         """
         for device in os.listdir(_SMBUS_DEVICES_PATH):
             device_abs = os.path.join(_SMBUS_DEVICES_PATH, device)
             if not os.path.isdir(device_abs):
                 continue
             
-            vendor_id_file = os.path.join(device_abs, _SMBUS_VENDORID_FILE)
-            if not os.path.isfile(vendor_id_file):
+            match = _SMBUS_REGEX_DEVICENAME.match(device)
+            if match is None:
+                continue
+            device_idx = int(match.group(1))
+            dimm_idx = int(match.group(2), 16) & (~_SMBUS_MEMORY_SPD_EEPROM_ADDRESS)
+            
+            name_file = os.path.join(device_abs, _SMBUS_DEVICENAME_FILE)
+            if not os.path.isfile(name_file):
                 continue
             try:
-                with open(vendor_id_file, 'rt', encoding='utf-8', errors='replace') as f:
+                with open(name_file, 'rt', encoding='utf-8', errors='replace') as f:
                     raw_value = f.readline()
-                    match = _SMBUS_REGEX_HEXID.match(raw_value)
-                    if match is None:
-                        continue
-                    if _SMBUS_MEMORY_SPD_VENDORID != match.group(1).lower():
+                    if _SMBUS_DEVICENAME_VALUE not in raw_value:
                         continue
             except IOError as e:
                 continue
             
-            device_id_file = os.path.join(device_abs, _SMBUS_DEVICEID_FILE)
-            if not os.path.isfile(device_id_file):
+            eeprom_file = os.path.join(device_abs, _SMBUS_MEMORY_SPD_EEPROM_FILE)
+            if not os.path.isfile(eeprom_file):
                 continue
             try:
-                with open(device_id_file, 'rt', encoding='utf-8', errors='replace') as f:
-                    raw_value = f.readline()
-                    match = _SMBUS_REGEX_HEXID.match(raw_value)
-                    if match is None:
-                        continue
-                    if _SMBUS_MEMORY_SPD_DEVICEID != match.group(1).lower():
-                        continue
+                with open(vendor_id_file, 'rb') as f:
+                    f.seek(_SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR)
+                    ts_support = f.read(1)
+                    if (ts_support & _SMBUS_MEMORY_SPD_EEPROM_FLAG_TEMPSENSOR) == 0:
+                        return continue
             except IOError as e:
                 continue
             
-            match = _SMBUS_REGEX_DEVICEINDEX.match(device)
-            if match is not None:
-                device_idx = int(match.group(1))
-                return device_idx
-            
-        return None
+            yield (device_idx, dimm_idx)
     
-    def __openMemorySMBusDevice(self):
-        """Open SMBus device for reading the memory temperature.
-        
-        Returns:
-            smbus.SMBus: The SMBus device object.
-        """
-        if self.__SMBUSDEV is None:
-            return None
-        
-        return smbus.SMBus(self.__SMBUSDEV)
-    
-    def getMemoryTemperature(self, dimm_index):
+    def getMemoryTemperature(self, i2c_index, dimm_index):
         """Get the temperature of the memory DIMM.
         
         Args:
+            i2c_index (int): Index of the I2C bus master.
             dimm_index (int): Index of the memory bank and DIMM.
 
         Returns:
             float: The temperature of the memory DIMM.
         """
-        sb = self.__openMemorySMBusDevice()
+        sb = smbus.SMBus(i2c_index)
         if sb is not None:
             try:
-                ts_support = sb.read_byte_data(_SMBUS_MEMORY_SPD_EEPROM_ADDRESS + dimm_index,
-                                               _SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR)
-                if (ts_support & 0x080) == 0:
-                    return None
-
                 raw_value = sb.read_word_data(_SMBUS_MEMORY_SPD_TEMP_ADDRESS + dimm_index,
                                               _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE)
             except IOError as e:

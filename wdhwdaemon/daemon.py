@@ -90,7 +90,7 @@ class FanControllerImpl(FanController):
     """Fan controller implementation.
     """
     
-    def __init__(self, hw_daemon, pmc, temperature_reader, disk_drives, num_dimms):
+    def __init__(self, hw_daemon, pmc, temperature_reader, disk_drives):
         """Initializes a new fan controller.
         
         Args:
@@ -98,10 +98,9 @@ class FanControllerImpl(FanController):
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
             disk_drives (List(str)): A list of HDD device names to monitor.
-            num_dimms (int): The number of memory DIMMs to monitor.
         """
         self.__hw_daemon = hw_daemon
-        super().__init__(pmc, temperature_reader, disk_drives, num_dimms)
+        super().__init__(pmc, temperature_reader, disk_drives)
     
     def controllerStarted(self):
         _logger.debug("%s: Fan controller started",
@@ -160,7 +159,6 @@ class ConfigFile(object):
         pmc_test_mode (bool): Enable PMC protocol testing mode?
         disk_drives (List(str)): List of disk drives in the drive bays (in the order of
             PMC drive bay flags).
-        memory_dimms_count (int): Number of memory DIMMs to monitor.
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
@@ -214,7 +212,6 @@ class ConfigFile(object):
         self.declareOption(SECTION, "pmc_port", default=None)
         self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
         self.declareOption(SECTION, "disk_drives", default=temperature.HDSMART_DISKS, parser=self.parseArray)
-        self.declareOption(SECTION, "memory_dimms_count", default=2, parser=self.parseInteger)
         self.declareOption(SECTION, "socket_path", default=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
@@ -1082,14 +1079,13 @@ class WdHwDaemon(object):
                          type(self).__name__,
                          num_cpus)
             
-            _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s, DIMMs = %d)",
+            _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s)",
                           type(self).__name__,
-                          pmc_version, num_cpus, cfg.disk_drives, cfg.memory_dimms_count)
+                          pmc_version, num_cpus, cfg.disk_drives)
             fan_controller = FanControllerImpl(self,
                                                pmc,
                                                temperature_reader,
-                                               cfg.disk_drives,
-                                               cfg.memory_dimms_count)
+                                               cfg.disk_drives)
             self.__fan_controller = fan_controller
             fan_controller.start()
             

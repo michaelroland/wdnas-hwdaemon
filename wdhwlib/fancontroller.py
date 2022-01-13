@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Thermal Controller.
 
-Copyright (c) 2017-2018 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -566,14 +566,13 @@ class FanController(FanControllerCallback):
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
     
-    def __init__(self, pmc, temperature_reader, disk_drives, num_dimms):
+    def __init__(self, pmc, temperature_reader, disk_drives):
         """Initializes a new fan controller.
         
         Args:
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
             disk_drives (List(str)): A list of HDD device names to monitor.
-            num_dimms (int): The number of memory DIMMs to monitor.
         """
         super().__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
@@ -589,8 +588,12 @@ class FanController(FanControllerCallback):
         ]
         for disk in disk_drives:
             self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
-        for dimm_index in range(0, num_dimms):
-            self.__monitors.append(MemoryTemperatureMonitor(temperature_reader, dimm_index))
+        for dimm in temperature_reader.findMemoryTemperatureSensors():
+            (i2c_index, dimm_index) = dimm
+            _logger.debug("%s: Discovered memory temperature sensor for DIMM %d at I2C %d",
+                          type(self).__name__,
+                          dimm_index, i2c_index)
+            self.__monitors.append(MemoryTemperatureMonitor(temperature_reader, i2c_index, dimm_index))
     
     def __run(self):
         """Runnable target of the fan controller thread."""
