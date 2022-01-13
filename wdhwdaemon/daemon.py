@@ -155,7 +155,6 @@ class ConfigFile(object):
         group (str): Group name or ID to drop privileges to during normal operation.
         pmc_port (str): Name of the serial port that the PMC is attached to (leave empty
             for automatic discovery).
-        pmc_test_mode (bool): Enable PMC protocol testing mode?
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
@@ -207,7 +206,6 @@ class ConfigFile(object):
         self.declareOption(SECTION, "user", default=wdhwdaemon.WDHWD_USER_DEFAULT)
         self.declareOption(SECTION, "group", default=None)
         self.declareOption(SECTION, "pmc_port", default=None)
-        self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
         self.declareOption(SECTION, "socket_path", default=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
@@ -1046,7 +1044,7 @@ class WdHwDaemon(object):
                           type(self).__name__,
                           self.__pmc_num_drivebays)
             
-            if cfg.pmc_test_mode:
+            if self.__debug_mode:
                 _logger.debug("%s: PMC test mode: executing all getter commands",
                               type(self).__name__)
                 pmc.getConfiguration()
