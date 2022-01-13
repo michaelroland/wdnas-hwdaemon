@@ -100,6 +100,9 @@ PMC_INTERRUPT_ECHO                   = 0b10000000
 PMC_STATUS_POWER_2_UP = 0b00000010
 PMC_STATUS_POWER_1_UP = 0b00000100
 
+#PMC drive bay status
+PMC_DRIVEPRESENCE_4BAY_INDICATOR = 0b00010000
+
 #PMC LED status
 PMC_LED_NONE                     = 0b00000000
 PMC_LED_POWER_BLUE               = 0b00000001
@@ -386,7 +389,7 @@ class PMCCommands(PMCInterruptCallback):
         """Find PMC serial port.
         
         Returns:
-            list(str): The serial port device node.
+            List(str): The serial port device node.
         """
         for device in os.listdir(_PMC_UART_DEVICES_PATH):
             device_abs = os.path.join(_PMC_UART_DEVICES_PATH, device)
@@ -421,7 +424,7 @@ class PMCCommands(PMCInterruptCallback):
             except IOError as e:
                 continue
             
-            yield os.path.join("/dev/", device)
+            yield os.path.join("/dev", device)
     
     def connect(self, port_name=None):
         """Connect to the PMC chip.

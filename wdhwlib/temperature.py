@@ -57,12 +57,13 @@ _SMBUS_MEMORY_SPD_EEPROM_FLAG_TEMPSENSOR = 0x080
 _SMBUS_MEMORY_SPD_TEMP_ADDRESS = 0x18
 _SMBUS_MEMORY_SPD_TEMP_REG_TEMPERATURE = 5
 
-_HDSMART_COMMAND_BASE = ["/usr/bin/sudo", "-n", "/usr/sbin/hddtemp", "-n", "-u", "C"]
-# for DL2100/PR2100:
-HDSMART_DISKS = ["/dev/sda", "/dev/sdb"]
-# for DL4100/PR4100:
-#HDSMART_DISKS = ["/dev/sda", "/dev/sdb", "/dev/sdc", "/dev/sdd"]
-_HDSMART_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
+_HDSMART_DISCOVERY_COMMAND = ["lsblk", "-S", "-d", "-l", "-n", "-o", "NAME,TRAN"]
+_HDSMART_DISCOVERY_REGEX = re.compile(r"^(\S+)\s+(\S*)$")
+_HDSMART_DISCOVERY_TYPE = "sata"
+_HDSMART_COMMAND1_BASE = ["sudo", "-n", "hddtemp", "-n", "-u", "C"]
+_HDSMART_REGEX_TEMPERATURE1 = re.compile(r"^([0-9]+)[^0-9]*$")
+_HDSMART_COMMAND2_BASE = ["sudo", "-n", "smartctl", "-A"]
+_HDSMART_REGEX_TEMPERATURE2 = re.compile(r"^\s*194\s+.*\s+([0-9]+)\s*$")
 
 
 class TemperatureReader(object):
@@ -75,6 +76,7 @@ class TemperatureReader(object):
         self.__lock = threading.RLock()
         self.__running = False
         self.__CORETEMP = None
+        self.__HDSMART_METHOD = None
     
     def connect(self):
         """Connect the temperature reader.
@@ -316,8 +318,28 @@ class TemperatureReader(object):
                     pass
         return None
     
-    def getHDTemperature(self, hdd):
-        """Get the temperature of the memory bank.
+    def findHardDiskDrives(self):
+        """Find internal hard disk drives with temperature information.
+        
+        Returns:
+            list(str): The hard disk drive device file.
+        """
+        try:
+            result = subprocess.check_output(_HDSMART_DISCOVERY_COMMAND,
+                                             encoding='utf-8', errors='replace',
+                                             stderr=subprocess.DEVNULL)
+            for line in result.splitlines():
+                match = _HDSMART_DISCOVERY_REGEX.match(line)
+                if match is not None:
+                    if _HDSMART_DISCOVERY_TYPE == match.group(2):
+                        hdd = os.path.join("/dev", match.group(1))
+                        if self.getHDTemperature(hdd) is not None:
+                            yield hdd
+        except CalledProcessError:
+            pass
+    
+    def __getHDTemperature1(self, hdd):
+        """Get the temperature of the hard disk drive through hddtemp.
         
         Args:
             hdd (str): The device file of the hard disk.
@@ -326,16 +348,61 @@ class TemperatureReader(object):
             float: The temperature of the hard disk drive.
         """
         try:
-            result = subprocess.check_output(_HDSMART_COMMAND_BASE + [hdd],
+            result = subprocess.check_output(_HDSMART_COMMAND1_BASE + [hdd],
                                              encoding='utf-8', errors='replace',
                                              stderr=subprocess.DEVNULL)
-            match = _HDSMART_REGEX_TEMPERATURE.match(result)
+            match = _HDSMART_REGEX_TEMPERATURE1.match(result)
             if match is not None:
                 temperature = int(match.group(1))
                 return float(temperature)
         except CalledProcessError:
             pass
         return None
+    
+    def __getHDTemperature2(self, hdd):
+        """Get the temperature of the hard disk drive through smartctl.
+        
+        Args:
+            hdd (str): The device file of the hard disk.
+        
+        Returns:
+            float: The temperature of the hard disk drive.
+        """
+        try:
+            result = subprocess.check_output(_HDSMART_COMMAND2_BASE + [hdd],
+                                             encoding='utf-8', errors='replace',
+                                             stderr=subprocess.DEVNULL)
+            for line in result.splitlines():
+                match = _HDSMART_REGEX_TEMPERATURE2.match(result)
+                if match is not None:
+                    temperature = int(match.group(1))
+                    return float(temperature)
+        except CalledProcessError:
+            pass
+        return None
+    
+    def getHDTemperature(self, hdd):
+        """Get the temperature of the hard disk drive.
+        
+        Args:
+            hdd (str): The device file of the hard disk.
+        
+        Returns:
+            float: The temperature of the hard disk drive.
+        """
+        if self.__HDSMART_METHOD == 1:
+            return self.__getHDTemperature1(hdd)
+        elif self.__HDSMART_METHOD == 2:
+            return self.__getHDTemperature2(hdd)
+        else:
+            self.__HDSMART_METHOD = 1
+            temperature = self.__getHDTemperature1(hdd)
+            if temperature is None:
+                self.__HDSMART_METHOD = 2
+                temperature = self.__getHDTemperature2(hdd)
+            if temperature is None:
+                self.__HDSMART_METHOD = None
+            return temperature
 
 
 if __name__ == "__main__":

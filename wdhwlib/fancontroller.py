@@ -566,13 +566,12 @@ class FanController(FanControllerCallback):
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
     
-    def __init__(self, pmc, temperature_reader, disk_drives):
+    def __init__(self, pmc, temperature_reader):
         """Initializes a new fan controller.
         
         Args:
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
-            disk_drives (List(str)): A list of HDD device names to monitor.
         """
         super().__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
@@ -586,7 +585,10 @@ class FanController(FanControllerCallback):
             CPUTemperatureMonitor(temperature_reader),
             CPUDeltaTemperatureMonitor(temperature_reader),
         ]
-        for disk in disk_drives:
+        for disk in temperature_reader.findHardDiskDrives():
+            _logger.debug("%s: Discovered internal HDD with temperature sensing at %s",
+                          type(self).__name__,
+                          disk)
             self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
         for dimm in temperature_reader.findMemoryTemperatureSensors():
             (i2c_index, dimm_index) = dimm

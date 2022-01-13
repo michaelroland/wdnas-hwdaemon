@@ -552,10 +552,13 @@ class WdHwClient(object):
                 enabled_mask = conn.getDriveEnabledMask()
                 alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
                 config_register = conn.getPMCConfiguration()
+                num_drivebays = 2
+                if (present_mask & wdpmcprotocol.PMC_DRIVEPRESENCE_4BAY_INDICATOR) != 0:
+                    num_drivebays = 4
                 print("Automatic HDD power-up on presence detection: {0}".format(
                         "on" if (config_register & 0x001) != 0 else "off"))
                 print("Drive bay\tDrive present\tDrive enabled\tAlert")
-                for drive_bay in range(0, len(cfg.disk_drives)):
+                for drive_bay in range(0, num_drivebays):
                     print("{0:9d}\t{1:13}\t{2:13}".format(
                             drive_bay,
                             "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
@@ -566,7 +569,7 @@ class WdHwClient(object):
             powersupply_bootup_status = conn.getPowerSupplyBootupStatus()
             powersupply_status = conn.getPowerSupplyStatus()
             print("Power supply\tCurrent state\tOn bootup")
-            for powersupply in range(0, len(cfg.disk_drives)):
+            for powersupply in range(0, 2):
                 print("{0:12d}\t{1:12}\t{2:12}".format(
                         powersupply + 1,
                         "connected" if powersupply_bootup_status[powersupply] else "disconnected",

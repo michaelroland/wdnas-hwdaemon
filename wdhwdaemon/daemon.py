@@ -90,17 +90,16 @@ class FanControllerImpl(FanController):
     """Fan controller implementation.
     """
     
-    def __init__(self, hw_daemon, pmc, temperature_reader, disk_drives):
+    def __init__(self, hw_daemon, pmc, temperature_reader):
         """Initializes a new fan controller.
         
         Args:
             hw_daemon (WdHwDaemon): The parent hardware controller daemon.
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
-            disk_drives (List(str)): A list of HDD device names to monitor.
         """
         self.__hw_daemon = hw_daemon
-        super().__init__(pmc, temperature_reader, disk_drives)
+        super().__init__(pmc, temperature_reader)
     
     def controllerStarted(self):
         _logger.debug("%s: Fan controller started",
@@ -157,8 +156,6 @@ class ConfigFile(object):
         pmc_port (str): Name of the serial port that the PMC is attached to (leave empty
             for automatic discovery).
         pmc_test_mode (bool): Enable PMC protocol testing mode?
-        disk_drives (List(str)): List of disk drives in the drive bays (in the order of
-            PMC drive bay flags).
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
@@ -211,7 +208,6 @@ class ConfigFile(object):
         self.declareOption(SECTION, "group", default=None)
         self.declareOption(SECTION, "pmc_port", default=None)
         self.declareOption(SECTION, "pmc_test_mode", default=False, parser=self.parseBoolean)
-        self.declareOption(SECTION, "disk_drives", default=temperature.HDSMART_DISKS, parser=self.parseArray)
         self.declareOption(SECTION, "socket_path", default=wdhwdaemon.WDHWD_SOCKET_FILE_DEFAULT)
         self.declareOption(SECTION, "socket_max_clients", default=10, parser=self.parseInteger)
         self.declareOption(SECTION, "log_file", default=None)
@@ -320,6 +316,7 @@ class WdHwDaemon(object):
         self.__pmc_initial_status = 0
         self.__pmc_status = 0
         self.__pmc_drive_presence_mask = 0
+        self.__pmc_num_drivebays = 0
         self.__temperature_reader = None
         self.__fan_controller = None
         self.__server = None
@@ -520,17 +517,14 @@ class WdHwDaemon(object):
             bay_number (int): The drive bay that changed its presence state.
             present (bool): A boolean flag indicating the new presence state.
         """
-        drive_name = ""
-        if bay_number < len(self.__cfg.disk_drives):
-            drive_name = self.__cfg.disk_drives[bay_number]
-        _logger.info("%s: Drive presence changed for bay %d (disk = '%s') to %s",
+        _logger.info("%s: Drive presence changed for bay %d to %s",
                      type(self).__name__,
-                     bay_number, drive_name, "present" if present else "absent")
+                     bay_number, "present" if present else "absent")
         if self.__cfg.drive_presence_changed_command is not None:
             cmd = [self.__cfg.drive_presence_changed_command]
             for arg in self.__cfg.drive_presence_changed_args:
                 cmd.append(arg.format(drive_bay=str(bay_number),
-                                      drive_name=drive_name,
+                                      drive_name="",
                                       state="1" if present else "0"))
             result = subprocess.call(cmd)
     
@@ -595,7 +589,7 @@ class WdHwDaemon(object):
         if (isr & wdpmcprotocol.PMC_INTERRUPT_DRIVE_PRESENCE_CHANGED) != 0:
             presence_mask = self.__pmc.getDrivePresenceMask()
             presence_delta = presence_mask ^ self.__pmc_drive_presence_mask
-            for drive_bay in range(0, len(self.__cfg.disk_drives)):
+            for drive_bay in range(0, self.__pmc_num_drivebays):
                 if (presence_delta & (1<<drive_bay)) != 0:
                     drive_present = (presence_mask & (1<<drive_bay)) != 0
                     self.notifyDrivePresenceChanged(drive_bay, drive_present)
@@ -1045,6 +1039,12 @@ class WdHwDaemon(object):
             self.__pmc_initial_status = pmc.getStatus()
             self.__pmc_status = self.__pmc_initial_status
             self.__pmc_drive_presence_mask = pmc.getDrivePresenceMask()
+            self.__pmc_num_drivebays = 2
+            if (self.__pmc_drive_presence_mask & wdpmcprotocol.PMC_DRIVEPRESENCE_4BAY_INDICATOR) != 0:
+                self.__pmc_num_drivebays = 4
+            _logger.debug("%s: This is a %d bay device",
+                          type(self).__name__,
+                          self.__pmc_num_drivebays)
             
             if cfg.pmc_test_mode:
                 _logger.debug("%s: PMC test mode: executing all getter commands",
@@ -1079,13 +1079,12 @@ class WdHwDaemon(object):
                          type(self).__name__,
                          num_cpus)
             
-            _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d, disks = %s)",
+            _logger.debug("%s: Starting fan controller (system = %s, CPUs = %d)",
                           type(self).__name__,
-                          pmc_version, num_cpus, cfg.disk_drives)
+                          pmc_version, num_cpus)
             fan_controller = FanControllerImpl(self,
                                                pmc,
-                                               temperature_reader,
-                                               cfg.disk_drives)
+                                               temperature_reader)
             self.__fan_controller = fan_controller
             fan_controller.start()
             
