@@ -348,7 +348,9 @@ class TemperatureReader(object):
             float: The temperature of the hard disk drive.
         """
         try:
-            result = subprocess.check_output(_HDSMART_COMMAND_BASE + [hdd])
+            result = subprocess.check_output(_HDSMART_COMMAND_BASE + [hdd],
+                                             encoding='utf-8', errors='replace',
+                                             stderr=subprocess.DEVNULL)
             match = _HDSMART_REGEX_TEMPERATURE.match(result)
             if match is not None:
                 temperature = int(match.group(1))
