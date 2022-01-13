@@ -215,7 +215,7 @@ class ConfigFile(object):
         self.declareOption(SECTION, "system_down_command", default=None)
         #self.declareOption(SECTION, "system_down_args", default=[], parser=self.parseArray)
         self.declareOption(SECTION, "drive_presence_changed_command", default=None)
-        self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{drive_name}", "{state}"], parser=self.parseArray)
+        self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "power_supply_changed_command", default=None)
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "temperature_changed_command", default=None)
