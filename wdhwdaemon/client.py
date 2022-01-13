@@ -37,7 +37,8 @@ import wdhwdaemon
 _logger = logging.getLogger(__name__)
 
 
-WDHWC_EXIT_SUCCESS = 0
+CLIENT_EXIT_SUCCESS = 0
+CLIENT_EXIT_HELP = 1
 
 
 class WdHwConnector(BasicPacketClient):
@@ -246,12 +247,12 @@ class WdHwClient(object):
             int: Exit status code.
         """
         cmdparser = argparse.ArgumentParser(
-                description=wdhwdaemon.WDHWC_DESCRIPTION,
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description=wdhwdaemon.CLIENT_DESCRIPTION,
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmdparser.add_argument(
                 '-C', '--config', action='store', nargs='?', metavar='CONFIG_FILE',
-                default=wdhwdaemon.WDHWD_CONFIG_FILE_DEFAULT,
+                default=wdhwdaemon.DAEMON_CONFIG_FILE_DEFAULT,
                 help='configuration file (default: %(default)s)')
         cmdparser.add_argument(
                 '-v', '--verbose', action='count',
@@ -262,17 +263,19 @@ class WdHwClient(object):
                 help='disables console logging output')
         cmdparser.add_argument(
                 '-V', '--version', action='version',
-                version=wdhwdaemon.WDHWD_VERSION,
+                version=wdhwdaemon.DAEMON_VERSION,
                 help='show version information and exit')
         subparsers = cmdparser.add_subparsers(
                 dest='command', metavar='COMMAND', title='available subcommands')
+        
         cmd_version = subparsers.add_parser('version', help='get system version command',
-                description="{}\nversion: get system version command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\nversion: get system version command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        
         cmd_led = subparsers.add_parser('led', help='LED control command',
-                description="{}\nled: LED control command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\nled: LED control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_led_type = cmd_led.add_argument_group(title='LED type to control')
         cmd_led_type = cmd_led_type.add_mutually_exclusive_group(required=True)
@@ -308,9 +311,10 @@ class WdHwClient(object):
         cmd_led_color.add_argument(
                 '-B', '--blue', action='store_true',
                 help='blue on (defaults to off when option is absent)')
+        
         cmd_fan = subparsers.add_parser('fan', help='fan control command',
-                description="{}\nfan: fan control command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\nfan: fan control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_fan_action = cmd_fan.add_argument_group(title='fan action mode')
         cmd_fan_action = cmd_fan_action.add_mutually_exclusive_group()
@@ -321,13 +325,15 @@ class WdHwClient(object):
                 '-s', '--set', action='store', type=int, dest='speed', metavar="SPEED",
                 default=None,
                 help='set fan speed in percent')
+        
         cmd_temperature = subparsers.add_parser('temperature', help='get system temperature command',
-                description="{}\ntemperature: get system temperature command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\ntemperature: get system temperature command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        
         cmd_lcd = subparsers.add_parser('lcd', help='LCD control command',
-                description="{}\nlcd: LCD control command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\nlcd: LCD control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_lcd_action = cmd_lcd.add_argument_group(title='LCD action mode')
         cmd_lcd_action.add_argument(
@@ -342,9 +348,10 @@ class WdHwClient(object):
                 '-s', '--set', action='store', type=int, dest='backlight', metavar='BACKLIGHT',
                 default=None,
                 help='set LCD backlight intensity in percent')
+        
         cmd_drive = subparsers.add_parser('drive', help='drive bay control command',
-                description="{}\ndrive: drive bay control command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\ndrive: drive bay control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_drive_action = cmd_drive.add_argument_group(title='drive bay action mode')
         cmd_drive_action = cmd_drive_action.add_mutually_exclusive_group()
@@ -371,23 +378,27 @@ class WdHwClient(object):
                 '-n', '--noalert', action='store', type=int, dest='drivebay_noalert', metavar="DRIVE_BAY",
                 default=None,
                 help='disable alert LED for drive bay number %(metavar)s')
+        
         cmd_power = subparsers.add_parser('power', help='get power supply status command',
-                description="{}\npower: get power supply status command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\npower: get power supply status command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        
         cmd_shutdown = subparsers.add_parser('shutdown', help='daemon shutdown command',
-                description="{}\nshutdown: daemon shutdown command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\nshutdown: daemon shutdown command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        
         cmd_pmc_debug = subparsers.add_parser('pmc_debug', help='PMC debug command',
-                description="{}\npmc_debug: PMC debug command".format(wdhwdaemon.WDHWC_DESCRIPTION),
-                epilog=wdhwdaemon.WDHWD_EPILOG,
+                description="{}\npmc_debug: PMC debug command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_pmc_debug_action = cmd_pmc_debug.add_argument_group(title='PMC debug command')
         cmd_pmc_debug_action.add_argument(
                 '-c', '--command', action='store', type=str, dest='pmc_command', metavar="PMC COMMAND",
                 default=None,
                 help='send raw command to PMC')
+        
         args = cmdparser.parse_args(argv[1:])
         
         log_level = logging.ERROR
@@ -409,185 +420,190 @@ class WdHwClient(object):
             consolelog.setFormatter(formatter)
             logger.addHandler(consolelog)
         
+        if args.command is None or args.command == "":
+            cmdparser.print_help()
+            return CLIENT_EXIT_HELP
+        
         _logger.debug("%s: Loading configuration file '%s'",
                       type(self).__name__,
                       args.config)
         cfg = ConfigFile(args.config)
         
         conn = WdHwConnector(cfg.socket_path)
-        if args.command == "version":
-            daemon_version = conn.getVersion()
-            pmc_version = conn.getPMCVersion()
-            print("Daemon version: {0}".format(daemon_version))
-            print("PMC version: {0}".format(pmc_version))
-        
-        elif args.command == "led":
-            if args.get or ((not args.steady) and (not args.blink) and (not args.pulse)):
-                if args.led_type == "power":
-                    led_status = conn.getPowerLED()
-                    print("Power LED\t{0:5}\t{1:5}\t{2:5}".format(
-                            "red", "green", "blue"))
-                    print("----------------------------------------")
-                    if led_status.mask_const:
-                        print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led_status.red_const   else "off",
-                                "on" if led_status.green_const else "off",
-                                "on" if led_status.blue_const  else "off"))
-                    if led_status.mask_blink:
-                        print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led_status.red_blink   else "off",
-                                "on" if led_status.green_blink else "off",
-                                "on" if led_status.blue_blink  else "off"))
-                    if led_status.mask_pulse:
-                        print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on" if led_status.red_pulse   else "---",
-                                "on" if led_status.green_pulse else "---",
-                                "on" if led_status.blue_pulse  else "off"))
-                elif args.led_type == "usb":
-                    led_status = conn.getUSBLED()
-                    print("USB LED  \t{0:5}\t{1:5}\t{2:5}".format(
-                            "red", "green", "blue"))
-                    print("----------------------------------------")
-                    if led_status.mask_const:
-                        print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led_status.red_const   else "off",
-                                "on " if led_status.green_const else "---",
-                                "on " if led_status.blue_const  else "off"))
-                    if led_status.mask_blink:
-                        print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led_status.red_blink   else "off",
-                                "on " if led_status.green_blink else "---",
-                                "on " if led_status.blue_blink  else "off"))
-                    if led_status.mask_pulse:
-                        print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
-                                "on " if led_status.red_pulse   else "---",
-                                "on " if led_status.green_pulse else "---",
-                                "on " if led_status.blue_pulse  else "---"))
-            else:
-                led_status = LEDStatus()
-                if args.steady:
-                    led_status.mask_const = True
-                    led_status.red_const = args.red
-                    led_status.green_const = args.green
-                    led_status.blue_const = args.blue
-                elif args.blink:
-                    led_status.mask_blink = True
-                    led_status.red_blink = args.red
-                    led_status.green_blink = args.green
-                    led_status.blue_blink = args.blue
-                elif args.pulse:
-                    led_status.mask_pulse = True
-                    led_status.red_pulse = args.red
-                    led_status.green_pulse = args.green
-                    led_status.blue_pulse = args.blue
-                if args.led_type == "power":
-                    conn.setPowerLED(led_status)
-                elif args.led_type == "usb":
-                    conn.setUSBLED(led_status)
-        
-        elif args.command == "fan":
-            if args.get or (args.speed is None):
-                fan_rpm = conn.getFanRPM()
-                fan_tac = conn.getFanTachoCount()
-                fan_speed = conn.getFanSpeed()
-                print("Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed))
-                print("Fan tacho count: {0} pulses per second".format(fan_tac))
-            else:
-                if (args.speed < 0) or (args.speed > 100):
-                    cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
+        try:
+            if args.command == "version":
+                daemon_version = conn.getVersion()
+                pmc_version = conn.getPMCVersion()
+                print("Daemon version: {0}".format(daemon_version))
+                print("PMC version: {0}".format(pmc_version))
+            
+            elif args.command == "led":
+                if args.get or ((not args.steady) and (not args.blink) and (not args.pulse)):
+                    if args.led_type == "power":
+                        led_status = conn.getPowerLED()
+                        print("Power LED\t{0:5}\t{1:5}\t{2:5}".format(
+                                "red", "green", "blue"))
+                        print("----------------------------------------")
+                        if led_status.mask_const:
+                            print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on" if led_status.red_const   else "off",
+                                    "on" if led_status.green_const else "off",
+                                    "on" if led_status.blue_const  else "off"))
+                        if led_status.mask_blink:
+                            print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on" if led_status.red_blink   else "off",
+                                    "on" if led_status.green_blink else "off",
+                                    "on" if led_status.blue_blink  else "off"))
+                        if led_status.mask_pulse:
+                            print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on" if led_status.red_pulse   else "---",
+                                    "on" if led_status.green_pulse else "---",
+                                    "on" if led_status.blue_pulse  else "off"))
+                    elif args.led_type == "usb":
+                        led_status = conn.getUSBLED()
+                        print("USB LED  \t{0:5}\t{1:5}\t{2:5}".format(
+                                "red", "green", "blue"))
+                        print("----------------------------------------")
+                        if led_status.mask_const:
+                            print("steady:  \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on " if led_status.red_const   else "off",
+                                    "on " if led_status.green_const else "---",
+                                    "on " if led_status.blue_const  else "off"))
+                        if led_status.mask_blink:
+                            print("blink:   \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on " if led_status.red_blink   else "off",
+                                    "on " if led_status.green_blink else "---",
+                                    "on " if led_status.blue_blink  else "off"))
+                        if led_status.mask_pulse:
+                            print("pulse:   \t{0:5}\t{1:5}\t{2:5}".format(
+                                    "on " if led_status.red_pulse   else "---",
+                                    "on " if led_status.green_pulse else "---",
+                                    "on " if led_status.blue_pulse  else "---"))
                 else:
-                    conn.setFanSpeed(args.speed)
-        
-        elif args.command == "lcd":
-            if args.get or ((args.text is None) and (args.backlight is None)):
-                backlight_intensity = conn.getLCDBacklightIntensity()
-                print("LCD backlight intensity: {0} %".format(backlight_intensity))
-            else:
-                if args.text:
-                    conn.setLCDText(1, args.text[0])
-                    conn.setLCDText(2, args.text[1])
-                if args.backlight:
-                    if (args.backlight < 0) or (args.backlight > 100):
-                        cmdparser.error("Parameter BACKLIGHT is out of valid range (0 <= BACKLIGHT <= 100)")
+                    led_status = LEDStatus()
+                    if args.steady:
+                        led_status.mask_const = True
+                        led_status.red_const = args.red
+                        led_status.green_const = args.green
+                        led_status.blue_const = args.blue
+                    elif args.blink:
+                        led_status.mask_blink = True
+                        led_status.red_blink = args.red
+                        led_status.green_blink = args.green
+                        led_status.blue_blink = args.blue
+                    elif args.pulse:
+                        led_status.mask_pulse = True
+                        led_status.red_pulse = args.red
+                        led_status.green_pulse = args.green
+                        led_status.blue_pulse = args.blue
+                    if args.led_type == "power":
+                        conn.setPowerLED(led_status)
+                    elif args.led_type == "usb":
+                        conn.setUSBLED(led_status)
+            
+            elif args.command == "fan":
+                if args.get or (args.speed is None):
+                    fan_rpm = conn.getFanRPM()
+                    fan_tac = conn.getFanTachoCount()
+                    fan_speed = conn.getFanSpeed()
+                    print("Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed))
+                    print("Fan tacho count: {0} pulses per second".format(fan_tac))
+                else:
+                    if (args.speed < 0) or (args.speed > 100):
+                        cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
                     else:
-                        conn.setLCDBacklightIntensity(args.backlight)
-        
-        elif args.command == "drive":
-            if (args.drivebay_enable is not None) or (args.drivebay_disable is not None):
-                drive_bay = None
-                enabled = True
-                if args.drivebay_enable is not None:
+                        conn.setFanSpeed(args.speed)
+            
+            elif args.command == "lcd":
+                if args.get or ((args.text is None) and (args.backlight is None)):
+                    backlight_intensity = conn.getLCDBacklightIntensity()
+                    print("LCD backlight intensity: {0} %".format(backlight_intensity))
+                else:
+                    if args.text:
+                        conn.setLCDText(1, args.text[0])
+                        conn.setLCDText(2, args.text[1])
+                    if args.backlight:
+                        if (args.backlight < 0) or (args.backlight > 100):
+                            cmdparser.error("Parameter BACKLIGHT is out of valid range (0 <= BACKLIGHT <= 100)")
+                        else:
+                            conn.setLCDBacklightIntensity(args.backlight)
+            
+            elif args.command == "drive":
+                if (args.drivebay_enable is not None) or (args.drivebay_disable is not None):
+                    drive_bay = None
                     enabled = True
-                    drive_bay = args.drivebay_enable
-                elif args.drivebay_disable is not None:
-                    enabled = False
-                    drive_bay = args.drivebay_disable
-                if drive_bay is not None:
-                    conn.setDriveEnabled(drive_bay, enabled)
+                    if args.drivebay_enable is not None:
+                        enabled = True
+                        drive_bay = args.drivebay_enable
+                    elif args.drivebay_disable is not None:
+                        enabled = False
+                        drive_bay = args.drivebay_disable
+                    if drive_bay is not None:
+                        conn.setDriveEnabled(drive_bay, enabled)
+                    else:
+                        cmdparser.error("Must specify at least one drive command")
+                elif (args.drivebay_alert is not None) or (args.drivebay_alertblink is not None) or (args.drivebay_noalert is not None):
+                    if args.drivebay_alert is not None:
+                        drive_bay = args.drivebay_alert
+                        alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                        alert_blink_mask &= ~(1<<drive_bay) & 0x00F
+                        conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                        conn.setDriveAlertLED(drive_bay, True)
+                    elif args.drivebay_alertblink is not None:
+                        drive_bay = args.drivebay_alertblink
+                        conn.setDriveAlertLED(drive_bay, False)
+                        alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                        alert_blink_mask |= (1<<drive_bay) & 0x00F
+                        conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                    elif args.drivebay_noalert is not None:
+                        drive_bay = args.drivebay_noalert
+                        alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
+                        alert_blink_mask &= ~(1<<drive_bay) & 0x00F
+                        conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
+                        conn.setDriveAlertLED(drive_bay, False)
+                    else:
+                        cmdparser.error("Must specify at least one drive command")
                 else:
-                    cmdparser.error("Must specify at least one drive command")
-            elif (args.drivebay_alert is not None) or (args.drivebay_alertblink is not None) or (args.drivebay_noalert is not None):
-                if args.drivebay_alert is not None:
-                    drive_bay = args.drivebay_alert
+                    present_mask = conn.getDrivePresentMask()
+                    enabled_mask = conn.getDriveEnabledMask()
                     alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
-                    alert_blink_mask &= ~(1<<drive_bay) & 0x00F
-                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
-                    conn.setDriveAlertLED(drive_bay, True)
-                elif args.drivebay_alertblink is not None:
-                    drive_bay = args.drivebay_alertblink
-                    conn.setDriveAlertLED(drive_bay, False)
-                    alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
-                    alert_blink_mask |= (1<<drive_bay) & 0x00F
-                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
-                elif args.drivebay_noalert is not None:
-                    drive_bay = args.drivebay_noalert
-                    alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
-                    alert_blink_mask &= ~(1<<drive_bay) & 0x00F
-                    conn.setDriveAlertLEDBlinkMask(alert_blink_mask)
-                    conn.setDriveAlertLED(drive_bay, False)
-                else:
-                    cmdparser.error("Must specify at least one drive command")
-            else:
-                present_mask = conn.getDrivePresentMask()
-                enabled_mask = conn.getDriveEnabledMask()
-                alert_blink_mask = conn.getDriveAlertLEDBlinkMask()
-                config_register = conn.getPMCConfiguration()
-                num_drivebays = 2
-                if (present_mask & wdpmcprotocol.PMC_DRIVEPRESENCE_4BAY_INDICATOR) != 0:
-                    num_drivebays = 4
-                print("Automatic HDD power-up on presence detection: {0}".format(
-                        "on" if (config_register & 0x001) != 0 else "off"))
-                print("Drive bay\tDrive present\tDrive enabled\tAlert")
-                for drive_bay in range(0, num_drivebays):
-                    print("{0:9d}\t{1:13}\t{2:13}".format(
-                            drive_bay,
-                            "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
-                            "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no",
-                            "blinking" if (alert_blink_mask & (1<<drive_bay)) != 0 else "off" if (enabled_mask & (1<<(drive_bay+4))) != 0 else "on"))
+                    config_register = conn.getPMCConfiguration()
+                    num_drivebays = 2
+                    if (present_mask & wdpmcprotocol.PMC_DRIVEPRESENCE_4BAY_INDICATOR) != 0:
+                        num_drivebays = 4
+                    print("Automatic HDD power-up on presence detection: {0}".format(
+                            "on" if (config_register & 0x001) != 0 else "off"))
+                    print("Drive bay\tDrive present\tDrive enabled\tAlert")
+                    for drive_bay in range(0, num_drivebays):
+                        print("{0:9d}\t{1:13}\t{2:13}".format(
+                                drive_bay,
+                                "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
+                                "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no",
+                                "blinking" if (alert_blink_mask & (1<<drive_bay)) != 0 else "off" if (enabled_mask & (1<<(drive_bay+4))) != 0 else "on"))
+            
+            elif args.command == "power":
+                powersupply_bootup_status = conn.getPowerSupplyBootupStatus()
+                powersupply_status = conn.getPowerSupplyStatus()
+                print("Power supply\tCurrent state\tOn bootup")
+                for powersupply in range(0, 2):
+                    print("{0:12d}\t{1:12}\t{2:12}".format(
+                            powersupply + 1,
+                            "connected" if powersupply_bootup_status[powersupply] else "disconnected",
+                            "connected" if powersupply_status[powersupply] else "disconnected"))
+            
+            elif args.command == "temperature":
+                pmc_temperature = conn.getPMCTemperature()
+                print("PMC temperature: {0} °C".format(pmc_temperature))
+            
+            elif args.command == "shutdown":
+                conn.daemonShutdown()
+            
+            elif args.command == "pmc_debug":
+                conn.sendDebug(args.pmc_command)
+        finally:
+            conn.close()
         
-        elif args.command == "power":
-            powersupply_bootup_status = conn.getPowerSupplyBootupStatus()
-            powersupply_status = conn.getPowerSupplyStatus()
-            print("Power supply\tCurrent state\tOn bootup")
-            for powersupply in range(0, 2):
-                print("{0:12d}\t{1:12}\t{2:12}".format(
-                        powersupply + 1,
-                        "connected" if powersupply_bootup_status[powersupply] else "disconnected",
-                        "connected" if powersupply_status[powersupply] else "disconnected"))
-        
-        elif args.command == "temperature":
-            pmc_temperature = conn.getPMCTemperature()
-            print("PMC temperature: {0} °C".format(pmc_temperature))
-        
-        elif args.command == "shutdown":
-            conn.daemonShutdown()
-        
-        elif args.command == "pmc_debug":
-            conn.sendDebug(args.pmc_command)
-        
-        conn.close()
-        
-        return WDHWC_EXIT_SUCCESS
+        return CLIENT_EXIT_SUCCESS
 
 
 if __name__ == "__main__":

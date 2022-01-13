@@ -1,7 +1,8 @@
 # Hardware Controller for Western Digital My Cloud NAS Systems
 
 This repository contains reimplementations of various user space tools for power,
-LED, and temperature management of Western Digital My Cloud DL2100, DL4100, PR2100 and PR4100 NAS Systems.
+LED, and temperature management of Western Digital My Cloud DL2100, DL4100, PR2100
+and PR4100 NAS Systems.
 
 
 ## WARNING
@@ -22,11 +23,12 @@ inaccuracies in this manual.*
 The packages *python3*, *python3-serial*, and *python3-smbus* need to be installed
 in order to use the tools:
 
-    sudo apt install python3 python3-serial python3-smbus
+    sudo apt-get install -y python3 python3-serial python3-smbus
 
-Moreover, *hddtemp* is necessary in order to monitor the hard disk temperature:
+Moreover, either *hddtemp* or *smartctl* is necessary in order to monitor the hard
+disk temperature:
 
-    sudo apt install hddtemp
+    sudo apt-get install -y hddtemp
 
 
 ### Setting up the environment
@@ -39,7 +41,7 @@ new system user should be created:
 When the hardware controller daemon was started as root, it automatically drops its
 privileges to this user but retains permissions to access necessary peripheral
 hardware components. However, the current implementation uses <samp>sudo</samp> to
-implementationnteract with certain tools, such as the <samp>hddtemp</samp> and
+interact with certain tools, such as the <samp>hddtemp</samp> and
 <samp>shutdown</samp> binaries. Therefore sudo-er permissions for those commands
 must to be added. An appropriate sudoers configuration file is available as
 [tools/wdhwd.sudoers](tools/wdhwd.sudoers):
@@ -61,14 +63,14 @@ start by copying this configuration to <samp>/etc/wdhwd.conf</samp>:
 
 ### Install the application files
 
-The application files should be installed to <samp>/usr/local/lib/wdhwd</samp> (make
-sure to adapt paths in [wdhwd.conf](tools/wdhwd.conf) and [wdhwd.service](tools/wdhwd.service)
-when choosing a different location):
+The application files should be installed to <samp>/opt/wdhwd</samp> (make
+sure to adapt paths in [wdhwd.conf](tools/wdhwd.conf) and
+[wdhwd.service](tools/wdhwd.service) when choosing a different location):
 
-    sudo cp -dR . /usr/local/lib/wdhwd
-    sudo chown -R root.root /usr/local/lib/wdhwd
-    sudo chmod -R u=rwX,go=rX /usr/local/lib/wdhwd
-    sudo chmod -R u=rwx,go=rx /usr/local/lib/wdhwd/scripts/*
+    sudo cp -dR . /opt/wdhwd
+    sudo chown -R root.root /opt/wdhwd
+    sudo chmod -R u=rwX,go=rX /opt/wdhwd
+    sudo chmod -R u=rwx,go=rx /opt/wdhwd/scripts/*
 
 
 ### Prepare logging directory
@@ -86,9 +88,10 @@ The sample configuration expects a logging directory writable by the user wdhwd 
 In order to use systemd to manage (i.e. start and stop) the hardware controller
 daemon, an appropriate service unit file needs to be installed. 
 
-    sudo cp tools/wdhwd.service $(pkg-config systemd --variable=systemdsystemunitdir)/
-    sudo chown root.root $(pkg-config systemd --variable=systemdsystemunitdir)/wdhwd.service
-    sudo chmod u=rw,go=r $(pkg-config systemd --variable=systemdsystemunitdir)/wdhwd.service
+    sudo cp tools/wdhwd.service /etc/systemd/system/
+    sudo chown root.root /etc/systemd/system/wdhwd.service
+    sudo chmod u=rw,go=r /etc/systemd/system/wdhwd.service
+    sudo systemctl daemon-reload
     sudo systemctl enable wdhwd.service
     sudo systemctl start wdhwd.service
 

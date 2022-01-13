@@ -312,13 +312,14 @@ class ServerThreadImpl(PacketServerThread):
     """Socket server thread implementation for the WD Hardware Controller Server.
     """
     
-    def __init__(self, listener):
+    def __init__(self, listener, options):
         """Initializes a new socket server thread that processes packet-structured data.
         
         Args:
             listener (SocketListener): The parent socket listener instance.
+            options (dict): A set of options passed to the socket server thread.
         """
-        self.__hw_daemon = listener.hw_daemon
+        self.__hw_daemon = options['hw_daemon']
         self.__COMMANDS = {
                 # General commands
                 CommandPacket.CMD_VERSION_GET:                    self.__commandVersionGet,
@@ -389,7 +390,7 @@ class ServerThreadImpl(PacketServerThread):
                 raise CloseConnectionWarning("End of transmission")
     
     def __commandVersionGet(self, packet):
-        self.sendPacket(packet.createResponse(wdhwdaemon.WDHWD_PROTOCOL_VERSION.encode('utf-8', 'ignore')))
+        self.sendPacket(packet.createResponse(wdhwdaemon.DAEMON_PROTOCOL_VERSION.encode('utf-8', 'ignore')))
     
     def __commandDaemonShutdown(self, packet):
         self.sendPacket(packet.createResponse(mirror_keep_alive=False))
@@ -671,10 +672,12 @@ class WdHwServer(SocketListener):
                 None to grant no group permissions).
             max_clients (int): Maximum number of concurrent clients.
         """
-        self.__hw_daemon = hw_daemon
         socket_factory = UnixSocketFactory(socket_path)
         server_socket = socket_factory.bindSocket(socket_group)
-        super().__init__(server_socket, max_clients, server_thread_class=ServerThreadImpl)
+        super().__init__(server_socket,
+                         max_clients,
+                         server_thread_class=ServerThreadImpl,
+                         server_thread_options={'hw_daemon': hw_daemon})
     
     @property
     def hw_daemon(self):

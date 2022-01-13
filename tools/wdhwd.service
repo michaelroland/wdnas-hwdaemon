@@ -5,13 +5,13 @@ Description=WD Hardware Controller Daemon
 
 [Service]
 Type=simple
-#User=wdhwd
-#Group=wdhwd
-#SupplementaryGroups=i2c dialout
+User=wdhwd
+Group=wdhwd
+SupplementaryGroups=i2c dialout
 Environment=
-WorkingDirectory=/usr/local/lib/wdhwd
-#RuntimeDirectory=wdhwd
-#RuntimeDirectoryMode=0750
+WorkingDirectory=/opt/wdhwd
+RuntimeDirectory=wdhwd
+RuntimeDirectoryMode=0750
 #LogsDirectory=wdhwd
 #LogsDirectoryMode=0750
 StandardOutput=inherit
