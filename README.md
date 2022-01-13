@@ -54,11 +54,12 @@ must to be added. An appropriate sudoers configuration file is available as
 ### Create the daemon configuration
 
 A sample configuration is available in [tools/wdhwd.conf](tools/wdhwd.conf). You can
-start by copying this configuration to <samp>/etc/wdhwd.conf</samp>:
+start by copying this configuration to <samp>/etc/wdhwd/wdhwd.conf</samp>:
 
-    sudo cp tools/wdhwd.conf /etc/wdhwd.conf
-    sudo chown root.root /etc/wdhwd.conf
-    sudo chmod u=rw,go=r /etc/wdhwd.conf
+    sudo mkdir /etc/wdhwd
+    sudo cp tools/wdhwd.conf /etc/wdhwd/wdhwd.conf
+    sudo chown root.root /etc/wdhwd/wdhwd.conf
+    sudo chmod u=rw,go=r /etc/wdhwd/wdhwd.conf
 
 
 ### Install the application files

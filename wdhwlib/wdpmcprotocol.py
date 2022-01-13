@@ -439,8 +439,12 @@ class PMCCommands(PMCInterruptCallback):
                 if not port_name:
                     port_names = self.__findSerialPorts()
                 for port in port_names:
+                    _logger.debug("%s: Probing for PMC at port '%s'",
+                                  type(self).__name__,
+                                  port)
+                    serial_port = None
                     try:
-                        serial_port = serial.Serial(port = port_name,
+                        serial_port = serial.Serial(port = port,
                                                     baudrate = _PMC_UART_BAUDRATE,
                                                     bytesize = _PMC_UART_DATABITS,
                                                     parity = _PMC_UART_PARITY,

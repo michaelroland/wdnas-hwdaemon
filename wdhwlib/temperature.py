@@ -280,11 +280,11 @@ class TemperatureReader(object):
             if not os.path.isfile(eeprom_file):
                 continue
             try:
-                with open(vendor_id_file, 'rb') as f:
+                with open(eeprom_file, 'rb') as f:
                     f.seek(_SMBUS_MEMORY_SPD_EEPROM_REG_TEMPSENSOR)
                     ts_support = f.read(1)
-                    if (ts_support & _SMBUS_MEMORY_SPD_EEPROM_FLAG_TEMPSENSOR) == 0:
-                        return continue
+                    if (len(ts_support) > 0) and ((ts_support[0] & _SMBUS_MEMORY_SPD_EEPROM_FLAG_TEMPSENSOR) == 0):
+                        continue
             except IOError as e:
                 continue
             
@@ -333,9 +333,12 @@ class TemperatureReader(object):
                 if match is not None:
                     if _HDSMART_DISCOVERY_TYPE == match.group(2):
                         hdd = os.path.join("/dev", match.group(1))
+                        _logger.debug("%s: Probing HDD %s",
+                                      type(self).__name__,
+                                      hdd)
                         if self.getHDTemperature(hdd) is not None:
                             yield hdd
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             pass
     
     def __getHDTemperature1(self, hdd):
@@ -355,7 +358,7 @@ class TemperatureReader(object):
             if match is not None:
                 temperature = int(match.group(1))
                 return float(temperature)
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             pass
         return None
     
@@ -377,7 +380,7 @@ class TemperatureReader(object):
                 if match is not None:
                     temperature = int(match.group(1))
                     return float(temperature)
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             pass
         return None
     
