@@ -179,7 +179,13 @@ class ThermalConditionMonitor(object):
         
         with self.__wait:
             while self.__running:
-                temperature = self._getCurrentTemperature()
+                temperature = None
+                try:
+                    temperature = self._getCurrentTemperature()
+                except Exception as e:
+                    _logger.error("%s: Failed to read temperature: %s",
+                                  self._log_name,
+                                  e)
                 for condition in self.__conditions:
                     if condition.test(temperature):
                         self.__update(condition.level, temperature)
@@ -272,12 +278,9 @@ class SystemTemperatureMonitor(ThermalConditionMonitor):
         Returns:
             float: Current temperature reading of the sensor.
         """
-        try:
-            temperature = self.__pmc.getTemperature()
-            if temperature is not None:
-                return float(temperature)
-        except Exception:
-            pass
+        temperature = self.__pmc.getTemperature()
+        if temperature is not None:
+            return float(temperature)
         return None
 
 
@@ -316,10 +319,7 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
         Returns:
             float: Current temperature reading of the sensor.
         """
-        try:
-            return self.__reader.getMemoryTemperature(self.__dimm_index)
-        except Exception:
-            return None
+        return self.__reader.getMemoryTemperature(self.__dimm_index)
 
 
 class CPUTemperatureMonitor(ThermalConditionMonitor):
@@ -348,17 +348,14 @@ class CPUTemperatureMonitor(ThermalConditionMonitor):
         Returns:
             float: Current temperature reading of the sensor.
         """
-        try:
-            temperature = None
-            for core in range(self.__reader.getNumCPUCores()):
-                core_temperature = self.__reader.getCPUTemperature(core)
-                if temperature is None:
-                    temperature = core_temperature
-                elif temperature < core_temperature:
-                    temperature = core_temperature
-            return temperature
-        except Exception:
-            return None
+        temperature = None
+        for core in range(self.__reader.getNumCPUCores()):
+            core_temperature = self.__reader.getCPUTemperature(core)
+            if temperature is None:
+                temperature = core_temperature
+            elif temperature < core_temperature:
+                temperature = core_temperature
+        return temperature
 
 
 class CPUDeltaTemperatureMonitor(ThermalConditionMonitor):
@@ -394,17 +391,14 @@ class CPUDeltaTemperatureMonitor(ThermalConditionMonitor):
         Returns:
             float: Current temperature reading of the sensor.
         """
-        try:
-            temperature = None
-            for core in range(self.__reader.getNumCPUCores()):
-                core_temperature = self.__reader.getCPUTemperatureDelta(core)
-                if temperature is None:
-                    temperature = core_temperature
-                elif temperature > core_temperature:
-                    temperature = core_temperature
-            return temperature
-        except Exception:
-            return None
+        temperature = None
+        for core in range(self.__reader.getNumCPUCores()):
+            core_temperature = self.__reader.getCPUTemperatureDelta(core)
+            if temperature is None:
+                temperature = core_temperature
+            elif temperature > core_temperature:
+                temperature = core_temperature
+        return temperature
 
 
 class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
@@ -444,10 +438,7 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
         Returns:
             float: Current temperature reading of the sensor.
         """
-        try:
-            return self.__reader.getHDTemperature(self.__drive)
-        except Exception:
-            return None
+        return self.__reader.getHDTemperature(self.__drive)
 
 
 class FanControllerCallback(object):
