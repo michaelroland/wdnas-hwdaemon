@@ -24,9 +24,17 @@ import logging
 import os
 import os.path
 import re
-import smbus
 import subprocess
 import threading
+
+# smbus / smbus2 is optional
+try:
+    import smbus
+except ImportError:
+    try:
+        import smbus2 as smbus
+    except ImportError:
+        pass
 
 
 _logger = logging.getLogger(__name__)
@@ -254,6 +262,11 @@ class TemperatureReader(object):
         Returns:
             list(tuple(int, int)): A list of SMBus devices and DIMM indices.
         """
+        if 'smbus' not in globals():
+            _logger.warning("%s: No suitable smbus library available!",
+                            type(self).__name__)
+            return
+        
         for device in os.listdir(_SMBUS_DEVICES_PATH):
             device_abs = os.path.join(_SMBUS_DEVICES_PATH, device)
             if not os.path.isdir(device_abs):
@@ -300,6 +313,11 @@ class TemperatureReader(object):
         Returns:
             float: The temperature of the memory DIMM.
         """
+        if 'smbus' not in globals():
+            _logger.error("%s: No suitable smbus library available!",
+                          type(self).__name__)
+            return None
+        
         sb = smbus.SMBus(i2c_index)
         if sb is not None:
             try:
