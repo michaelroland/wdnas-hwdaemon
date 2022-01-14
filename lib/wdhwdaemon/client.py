@@ -35,6 +35,8 @@ from wdhwdaemon.server import CloseConnectionWarning
 from wdhwdaemon.server import LEDStatus
 import wdhwdaemon
 
+import wdhwlib.wdpmcprotocol as wdpmcprotocol
+
 
 _logger = logging.getLogger(__name__)
 
