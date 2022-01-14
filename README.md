@@ -106,7 +106,7 @@ Find documentation and grab the latest version on GitHub
 ## COPYRIGHT
 
 - Copyright (c) 2017-2021 Michael Roland <<mi.roland@gmail.com>>
-- Copyright (c) 2019 Stefaan Ghysels <<stefaang@gmail.com>>
+- Copyright (c) 2018-2019 Stefaan Ghysels <<stefaang@gmail.com>>
 
 
 ## DISCLAIMER
