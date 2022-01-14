@@ -1349,9 +1349,9 @@ class PMCCommands(PMCInterruptCallback):
             (cmd_code, separator, cmd_value) = raw_command.partition("=")
             if len(separator) <= 0:
                 cmd_value = None
-            self.__processor.transceiveCommand(cmd_code, cmd_value)
-        except:
-            pass
+            return self.__processor.transceiveCommand(cmd_code, cmd_value)
+        except Exception as e:
+            return f"{e}"
     
     def interruptReceived(self):
         pass

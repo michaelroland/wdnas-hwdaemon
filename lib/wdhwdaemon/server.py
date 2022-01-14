@@ -656,8 +656,8 @@ class ServerThreadImpl(PacketServerThread):
     
     def __commandPMCDebug(self, packet):
         raw_command = packet.parameter.decode('ascii', 'ignore')
-        self.__hw_daemon.pmc.sendRaw(raw_command)
-        self.sendPacket(packet.createResponse())
+        raw_response = self.__hw_daemon.pmc.sendRaw(raw_command)
+        self.sendPacket(packet.createResponse(raw_response.encode('utf-8', 'ignore')))
 
 
 class WdHwServer(SocketListener):

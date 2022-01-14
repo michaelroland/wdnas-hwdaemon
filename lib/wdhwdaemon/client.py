@@ -238,6 +238,7 @@ class WdHwConnector(BasicPacketClient):
     def sendDebug(self, raw_command):
         response = self._executeCommand(CommandPacket.CMD_PMC_DEBUG,
                                         parameter=raw_command.encode('ascii', 'ignore'))
+        return response.decode('utf-8', 'ignore')
 
 
 class WdHwClient(object):
@@ -620,7 +621,11 @@ class WdHwClient(object):
                 print("Terminated.")
             
             elif args.command == "pmc_debug":
-                conn.sendDebug(args.pmc_command)
+                if args.pmc_command is not None:
+                    result = conn.sendDebug(args.pmc_command)
+                    print(f"> {args.pmc_command}")
+                    print(f"< {result}")
+        
         finally:
             conn.close()
         
