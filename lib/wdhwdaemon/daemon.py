@@ -25,6 +25,7 @@ import logging
 import os
 import os.path
 import subprocess
+import threading
 import time
 
 import daemonize.config
@@ -99,12 +100,14 @@ class FanControllerImpl(FanController):
         _logger.debug("%s: Fan controller started",
                       type(self).__name__)
         self.__hw_daemon.setLEDNormalState()
+        self.__hw_daemon.setLCDNormalState()
     
     def controllerStopped(self):
         _logger.debug("%s: Fan controller stopped",
                       type(self).__name__)
         self.__hw_daemon.setFanBootState()
         self.__hw_daemon.setLEDWarningState()
+        self.__hw_daemon.setLCDErrorState("WARNING", "WDHWD stopped!!!")
         if self.__hw_daemon.is_running:
             self.__hw_daemon.shutdown()
     
@@ -113,28 +116,108 @@ class FanControllerImpl(FanController):
                       type(self).__name__)
         self.__hw_daemon.initiateImmediateSystemShutdown()
         self.__hw_daemon.setLEDErrorState()
+        self.__hw_daemon.setLCDErrorState("FAN ERROR", "Shutting down...")
     
     def shutdownRequestImmediate(self):
         _logger.error("%s: Overheat condition requires immediate shutdown",
                       type(self).__name__)
         self.__hw_daemon.initiateImmediateSystemShutdown()
         self.__hw_daemon.setLEDErrorState()
+        self.__hw_daemon.setLCDErrorState("OVERHEAT ALERT", "Shutting down...")
     
     def shutdownRequestDelayed(self):
         _logger.error("%s: Overheat condition requires shutdown with grace period",
                       type(self).__name__)
         self.__hw_daemon.initiateDelayedSystemShutdown()
         self.__hw_daemon.setLEDErrorState()
+        self.__hw_daemon.setLCDErrorState("OVERHEAT ALERT", "Shutdown pending")
     
     def shutdownCancelPending(self):
         self.__hw_daemon.cancelPendingSystemShutdown()
         self.__hw_daemon.setLEDNormalState()
+        self.__hw_daemon.setLCDNormalState()
     
     def levelChanged(self, new_level, old_level):
         _logger.debug("%s: Temperature alert level changed from %d to %d",
                       type(self).__name__,
                       old_level, new_level)
         self.__hw_daemon.temperatureLevelChanged(new_level, old_level)
+
+
+class CancelableTimer(object):
+    """A cancelable timer.
+    
+    Attributes:
+        is_running: Is the timer thread in running state?
+    """
+    
+    def __init__(self, f):
+        """Initializes a new timer.
+        
+        Args:
+            f (callable): A callable function.
+        """
+        super().__init__()
+        self.__function = f
+        self.__timeout = None
+        self.__wait = threading.Condition()
+        self.__running = False
+        self.__thread = None
+    
+    def __run(self):
+        """Runnable target of the timer thread."""
+        with self.__wait:
+            while self.__running:
+                timeout = self.__timeout
+                if not self.__wait.wait(timeout):
+                    self.__function()
+    
+    def start(self):
+        """Start the timer thread.
+        
+        Raises:
+            RuntimeError: When calling ``start()`` on a manager that is
+                already running.
+        """
+        with self.__wait:
+            if not self.__running:
+                self.__thread = threading.Thread(target=self.__run)
+                self.__thread.daemon = True
+                self.__running = True
+                self.__thread.start()
+            else:
+                raise RuntimeError('start called when timer was already started')
+    
+    def join(self):
+        """Join the timer thread.
+        
+        This stops the timer thread and waits for its completion.
+        """
+        thread = None
+        with self.__wait:
+            if self.__running:
+                self.__running = False
+                thread = self.__thread
+                self.__thread = None
+                self.__wait.notify_all()
+        if thread is not None:
+            thread.join()
+    
+    @property
+    def is_running(self):
+        """bool: Is the timer thread in running state?"""
+        with self.__wait:
+            return self.__running
+    
+    def setTimer(self, timeout):
+        with self.__wait:
+            self.__timeout = timeout
+            self.__wait.notify_all()
+    
+    def cancelTimer(self):
+        with self.__wait:
+            self.__timeout = None
+            self.__wait.notify_all()
 
 
 class ConfigFileImpl(daemonize.config.AbstractConfigFile):
@@ -179,6 +262,9 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
             is pressed.
         lcd_down_button_long_command (str): The command to execute when the LCD down
             button is long-pressed.
+        lcd_intensity_normal (int): The normal LCD backlight intensity.
+        lcd_intensity_dimmed (int): The dimmed LCD backlight intensity.
+        lcd_dim_timeout (int): The timeout in seconds after which to dim the LCD backlight.
     """
     
     def __init__(self, config_file):
@@ -206,6 +292,9 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "lcd_up_button_long_command", default=None)
         self.declareOption(SECTION, "lcd_down_button_command", default=None)
         self.declareOption(SECTION, "lcd_down_button_long_command", default=None)
+        self.declareOption(SECTION, "lcd_intensity_normal", default=100, parser=self.parseInteger)
+        self.declareOption(SECTION, "lcd_intensity_dimmed", default=0, parser=self.parseInteger)
+        self.declareOption(SECTION, "lcd_dim_timeout", default=60, parser=self.parseInteger)
 
 
 class WdHwDaemon(daemonize.daemon.AbstractDaemon):
@@ -232,6 +321,8 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         self.__usb_copy_button_time = time.monotonic()
         self.__lcd_up_button_time = time.monotonic()
         self.__lcd_down_button_time = time.monotonic()
+        self.__lcd_normal_backlight_intensity = 100
+        self.__lcd_dim_timer = None
         self.__temperature_reader = None
         self.__fan_controller = None
         self.__server = None
@@ -341,6 +432,59 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         self.__pmc.setPowerLEDPulse(False)
         self.__pmc.setLEDStatus(status | wdpmcprotocol.PMC_LED_NONE)
         self.__pmc.setLEDBlink(blink | wdpmcprotocol.PMC_LED_POWER_RED)
+    
+    def setLCDBootState(self):
+        """Set the LCD to the initial boot-up state."""
+        _logger.debug("%s: Setting LCD to initial bootup state",
+                      type(self).__name__)
+        self.setLCDNormalBacklightIntensity(self.getConfig("lcd_intensity_normal"), False)
+        self.__pmc.setLCDText(1, "Starting...")
+        self.__pmc.setLCDText(2, "")
+    
+    def setLCDNormalState(self):
+        """Set the LCD to the normal state."""
+        _logger.debug("%s: Setting LCD to normal state",
+                      type(self).__name__)
+        self.setLCDDimmed()
+        self.__pmc.setLCDText(1, "")
+        self.__pmc.setLCDText(2, "")
+    
+    def setLCDErrorState(self, message1="", message2=""):
+        """Set the LCD to the normal state."""
+        _logger.debug("%s: Setting LCD to error state",
+                      type(self).__name__)
+        self.setLCDNormalBacklightIntensity(100, False)
+        self.__pmc.setLCDText(1, message1)
+        self.__pmc.setLCDText(2, message2)
+    
+    @property
+    def lcd_dim_timeout(self):
+        """int: The dimmed LCD backlight intensity."""
+        return self.getConfig("lcd_dim_timeout")
+    
+    @property
+    def lcd_backlight_intensity_dimmed(self):
+        """int: The dimmed LCD backlight intensity."""
+        return self.getConfig("lcd_intensity_dimmed")
+    
+    def setLCDDimmed(self):
+        """Dim the LCD backlight."""
+        self.__pmc.setLCDBacklightIntensity(self.lcd_backlight_intensity_dimmed)
+    
+    @property
+    def lcd_backlight_intensity_normal(self):
+        """int: The normal LCD backlight intensity."""
+        return self.__lcd_normal_backlight_intensity
+    
+    def setLCDNormalBacklightIntensity(self, intensity=None, with_timeout=True):
+        """Set the LCD backlight."""
+        if self.__lcd_dim_timer:
+            self.__lcd_dim_timer.cancelTimer()
+        if intensity is not None:
+            self.__lcd_normal_backlight_intensity = intensity
+        self.__pmc.setLCDBacklightIntensity(self.__lcd_normal_backlight_intensity)
+        if with_timeout and self.__lcd_dim_timer:
+            self.__lcd_dim_timer.setTimer(self.lcd_dim_timeout)
     
     def getPowerSupplyState(self):
         """Get the current power supply state.
@@ -485,6 +629,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      "pressed" if down_up else "released")
         if down_up:
             self.__usb_copy_button_time = time.monotonic()
+            self.setLCDNormalBacklightIntensity()
         else:
             duration = time.monotonic() - self.__usb_copy_button_time
             cmd = None
@@ -507,6 +652,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      "pressed" if down_up else "released")
         if down_up:
             self.__lcd_up_button_time = time.monotonic()
+            self.setLCDNormalBacklightIntensity()
         else:
             duration = time.monotonic() - self.__lcd_up_button_time
             cmd = None
@@ -529,6 +675,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      "pressed" if down_up else "released")
         if down_up:
             self.__lcd_down_button_time = time.monotonic()
+            self.setLCDNormalBacklightIntensity()
         else:
             duration = time.monotonic() - self.__lcd_down_button_time
             cmd = None
@@ -704,11 +851,17 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             pmc.getDrivePresenceMask()
             pmc.getDriveAlertLEDBlinkMask()
         
+        self.setLEDBootState()
+        self.setLCDBootState()
+        if self.getConfig("lcd_dim_timeout"):
+            _logger.debug("%s: Starting LCD auto-dim timer",
+                          type(self).__name__)
+            self.__lcd_dim_timer = CancelableTimer(self.setLCDDimmed)
+            self.__lcd_dim_timer.start()
+        
         _logger.debug("%s: Enabling all PMC interrupts",
                       type(self).__name__)
         pmc.setInterruptMask(wdpmcprotocol.PMC_INTERRUPT_MASK_ALL)
-        
-        self.setLEDBootState()
         
         _logger.debug("%s: Starting temperature reader",
                       type(self).__name__)
@@ -758,6 +911,10 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             _logger.debug("%s: Stopping temperature reader",
                           type(self).__name__)
             self.__temperature_reader.close()
+        if self.__lcd_dim_timer is not None:
+            _logger.debug("%s: Stopping LCD auto-dim timer",
+                          type(self).__name__)
+            self.__lcd_dim_timer.join()
         if self.__pmc is not None:
             _logger.debug("%s: Stopping PMC manager",
                           type(self).__name__)

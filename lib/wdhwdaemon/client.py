@@ -158,6 +158,27 @@ class WdHwConnector(BasicPacketClient):
         else:
             raise ValueError("Invalid response format")
     
+    def getLCDNormalBacklightIntensity(self):
+        response = self._executeCommand(CommandPacket.CMD_LCD_NORMAL_BACKLIGHT_INTENSITY_GET)
+        if len(response) > 0:
+            return response[0]
+        else:
+            raise ValueError("Invalid response format")
+    
+    def getLCDDimmedBacklightIntensity(self):
+        response = self._executeCommand(CommandPacket.CMD_LCD_DIMMED_BACKLIGHT_INTENSITY_GET)
+        if len(response) > 0:
+            return response[0]
+        else:
+            raise ValueError("Invalid response format")
+    
+    def getLCDDimTimeout(self):
+        response = self._executeCommand(CommandPacket.CMD_LCD_DIM_TIMEOUT_GET)
+        if len(response) > 1:
+            return ((response[0] << 8) & 0x0FF00) | (response[1] & 0x0FF)
+        else:
+            raise ValueError("Invalid response format")
+    
     def setLCDText(self, line, text):
         parameter = bytearray([line])
         parameter.extend(text.encode('ascii', 'ignore'))
@@ -529,7 +550,13 @@ class WdHwClient(object):
             elif args.command == "lcd":
                 if args.get or ((args.text is None) and (args.backlight is None)):
                     backlight_intensity = conn.getLCDBacklightIntensity()
-                    print("LCD backlight intensity: {0} %".format(backlight_intensity))
+                    backlight_intensity_normal = conn.getLCDNormalBacklightIntensity()
+                    backlight_intensity_dimmed = conn.getLCDDimmedBacklightIntensity()
+                    dim_timeout = conn.getLCDDimTimeout()
+                    print("Current LCD backlight intensity: {0:3d} %".format(backlight_intensity))
+                    print("Normal LCD backlight intensity:  {0:3d} %".format(backlight_intensity_normal))
+                    print("Dimmed LCD backlight intensity:  {0:3d} %".format(backlight_intensity_dimmed))
+                    print("LCD dim timeout: {0} s".format(dim_timeout))
                 else:
                     if args.text:
                         conn.setLCDText(1, args.text[0])

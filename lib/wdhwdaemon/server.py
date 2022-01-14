@@ -73,6 +73,9 @@ class CommandPacket(BasicPacket):
     CMD_LCD_BACKLIGHT_INTENSITY_SET = 0x0114
     CMD_LCD_BACKLIGHT_INTENSITY_GET = 0x0115
     CMD_LCD_TEXT_SET = 0x0116
+    CMD_LCD_NORMAL_BACKLIGHT_INTENSITY_GET = 0x0119
+    CMD_LCD_DIMMED_BACKLIGHT_INTENSITY_GET = 0x011B
+    CMD_LCD_DIM_TIMEOUT_GET = 0x011D
     CMD_PMC_TEMPERATURE_GET = 0x0121
     CMD_FAN_RPM_GET = 0x0123
     CMD_FAN_SPEED_SET = 0x0124
@@ -338,6 +341,9 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_SET:    self.__commandLCDBacklightIntensitySet,
                 CommandPacket.CMD_LCD_BACKLIGHT_INTENSITY_GET:    self.__commandLCDBacklightIntensityGet,
                 CommandPacket.CMD_LCD_TEXT_SET:                   self.__commandLCDTextSet,
+                CommandPacket.CMD_LCD_NORMAL_BACKLIGHT_INTENSITY_GET: self.__commandLCDNormalBacklightIntensityGet,
+                CommandPacket.CMD_LCD_DIMMED_BACKLIGHT_INTENSITY_GET: self.__commandLCDDimmedBacklightIntensityGet,
+                CommandPacket.CMD_LCD_DIM_TIMEOUT_GET:            self.__commandLCDDimTimeoutGet,
                 CommandPacket.CMD_PMC_TEMPERATURE_GET:            self.__commandPMCTemperatureGet,
                 CommandPacket.CMD_FAN_RPM_GET:                    self.__commandFanRPMGet,
                 CommandPacket.CMD_FAN_SPEED_SET:                  self.__commandFanSpeedSet,
@@ -529,7 +535,7 @@ class ServerThreadImpl(PacketServerThread):
         if (packet.parameter is None) or (len(packet.parameter) != 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
-            self.__hw_daemon.pmc.setLCDBacklightIntensity(packet.parameter[0])
+            self.__hw_daemon.setLCDNormalBacklightIntensity(packet.parameter[0])
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
@@ -543,12 +549,37 @@ class ServerThreadImpl(PacketServerThread):
         else:
             self.sendPacket(packet.createResponse(bytearray([intensity])))
     
+    def __commandLCDNormalBacklightIntensityGet(self, packet):
+        try:
+            intensity = self.__hw_daemon.lcd_backlight_intensity_normal
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([intensity])))
+    
+    def __commandLCDDimmedBacklightIntensityGet(self, packet):
+        try:
+            intensity = self.__hw_daemon.lcd_backlight_intensity_dimmed
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([intensity])))
+    
+    def __commandLCDDimTimeoutGet(self, packet):
+        try:
+            timeout = self.__hw_daemon.lcd_dim_timeout
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(bytearray([(timeout >> 8) & 0x0FF, timeout & 0x0FF])))
+    
     def __commandLCDTextSet(self, packet):
         if (packet.parameter is None) or (len(packet.parameter) < 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
             self.__hw_daemon.pmc.setLCDText(packet.parameter[0],
                                             packet.parameter[1:].decode('ascii', 'ignore'))
+            self.__hw_daemon.setLCDNormalBacklightIntensity()
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
