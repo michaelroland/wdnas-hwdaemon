@@ -358,7 +358,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         _logger.info("%s: Initiating immediate system shutdown",
                      type(self).__name__)
         if not self.debug_mode:
-            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "now"])
+            result = subprocess.call(["sudo", "-n", "shutdown", "-P", "now"])
         else:
             _logger.warning("%s: System shutdown not initiated in debug mode!",
                             type(self).__name__)
@@ -374,7 +374,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      type(self).__name__,
                      grace_period)
         if not self.debug_mode:
-            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-P", "+{0}".format(grace_period)])
+            result = subprocess.call(["sudo", "-n", "shutdown", "-P", "+{0}".format(grace_period)])
         else:
             _logger.warning("%s: System shutdown not scheduled in debug mode!",
                             type(self).__name__)
@@ -384,7 +384,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         _logger.info("%s: Cancelling pending system shutdown",
                      type(self).__name__)
         if not self.debug_mode:
-            result = subprocess.call(["/usr/bin/sudo", "-n", "/sbin/shutdown", "-c"])
+            result = subprocess.call(["sudo", "-n", "shutdown", "-c"])
         else:
             _logger.warning("%s: System shutdown not scheduled in debug mode!",
                             type(self).__name__)
