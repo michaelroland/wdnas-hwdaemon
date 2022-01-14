@@ -586,7 +586,7 @@ class WdHwClient(object):
                             "on" if (config_register & 0x001) != 0 else "off"))
                     print("Drive bay\tDrive present\tDrive enabled\tAlert")
                     for drive_bay in range(0, num_drivebays):
-                        print("{0:9d}\t{1:13}\t{2:13}".format(
+                        print("{0:9d}\t{1:13}\t{2:13}\t{3:13}".format(
                                 drive_bay,
                                 "no"  if (present_mask & (1<<drive_bay)) != 0 else "yes",
                                 "yes" if (enabled_mask & (1<<drive_bay)) != 0 else "no",
