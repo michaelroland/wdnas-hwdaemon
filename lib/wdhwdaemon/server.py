@@ -640,7 +640,7 @@ class ServerThreadImpl(PacketServerThread):
         if (packet.parameter is None) or (len(packet.parameter) != 1):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_PARAMETER_LENGTH_ERROR))
         try:
-            mask = self.__hw_daemon.pmc.setDriveAlertLEDBlinkMask(parameter[0])
+            self.__hw_daemon.pmc.setDriveAlertLEDBlinkMask(packet.parameter[0])
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
