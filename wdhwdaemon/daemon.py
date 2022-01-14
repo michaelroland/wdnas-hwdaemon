@@ -25,6 +25,7 @@ import logging
 import os
 import os.path
 import subprocess
+import time
 
 import daemonize.config
 import daemonize.daemon
@@ -43,6 +44,8 @@ _logger = logging.getLogger(__name__)
 
 DAEMON_EXIT_CONFIG_ERROR = 10
 DAEMON_EXIT_PERMISSION_ERROR = 11
+
+_BUTTON_LONG_PRESS_DURATION = 2.0
 
 
 class PMCCommandsImpl(PMCCommands):
@@ -186,6 +189,12 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "temperature_changed_command", default=None)
         self.declareOption(SECTION, "temperature_changed_args", default=["{new_level}", "{old_level}"], parser=self.parseArray)
+        self.declareOption(SECTION, "usb_copy_button_command", default=None)
+        self.declareOption(SECTION, "usb_copy_button_long_command", default=None)
+        self.declareOption(SECTION, "lcd_up_button_command", default=None)
+        self.declareOption(SECTION, "lcd_up_button_long_command", default=None)
+        self.declareOption(SECTION, "lcd_down_button_command", default=None)
+        self.declareOption(SECTION, "lcd_down_button_long_command", default=None)
 
 
 class WdHwDaemon(daemonize.daemon.AbstractDaemon):
@@ -208,6 +217,9 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         self.__pmc_status = 0
         self.__pmc_drive_presence_mask = 0
         self.__pmc_num_drivebays = 0
+        self.__usb_copy_button_time = time.monotonic()
+        self.__lcd_up_button_time = time.monotonic()
+        self.__lcd_down_button_time = time.monotonic()
         self.__temperature_reader = None
         self.__fan_controller = None
         self.__server = None
@@ -451,9 +463,21 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         Args:
             down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
         """
-        _logger.info("%s: USB copy button pressed state changed for to %s",
+        _logger.info("%s: USB copy button pressed state changed to %s",
                      type(self).__name__,
                      "pressed" if down_up else "released")
+        if down_up:
+            self.__usb_copy_button_time = time.monotonic()
+        else:
+            duration = time.monotonic() - self.__usb_copy_button_time
+            cmd = None
+            if duration > _BUTTON_LONG_PRESS_DURATION:
+                cmd = self.getConfig("usb_copy_button_long_command")
+            if cmd is None:
+                cmd = self.getConfig("usb_copy_button_command")
+            if cmd is not None:
+                cmd = [cmd]
+                result = subprocess.call(cmd)
     
     def notifyLCDUpButton(self, down_up):
         """Notify change of LCD up button pressed state.
@@ -461,9 +485,21 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         Args:
             down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
         """
-        _logger.info("%s: LCD up button pressed state changed for to %s",
+        _logger.info("%s: LCD up button pressed state changed to %s",
                      type(self).__name__,
                      "pressed" if down_up else "released")
+        if down_up:
+            self.__lcd_up_button_time = time.monotonic()
+        else:
+            duration = time.monotonic() - self.__lcd_up_button_time
+            cmd = None
+            if duration > _BUTTON_LONG_PRESS_DURATION:
+                cmd = self.getConfig("lcd_up_button_long_command")
+            if cmd is None:
+                cmd = self.getConfig("lcd_up_button_command")
+            if cmd is not None:
+                cmd = [cmd]
+                result = subprocess.call(cmd)
     
     def notifyLCDDownButton(self, down_up):
         """Notify change of LCD down button pressed state.
@@ -471,9 +507,21 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         Args:
             down_up (bool): A boolean flag indicating if the button was pressed (True) or released (False).
         """
-        _logger.info("%s: LCD down button pressed state changed for to %s",
+        _logger.info("%s: LCD down button pressed state changed to %s",
                      type(self).__name__,
                      "pressed" if down_up else "released")
+        if down_up:
+            self.__lcd_down_button_time = time.monotonic()
+        else:
+            duration = time.monotonic() - self.__lcd_down_button_time
+            cmd = None
+            if duration > _BUTTON_LONG_PRESS_DURATION:
+                cmd = self.getConfig("lcd_down_button_long_command")
+            if cmd is None:
+                cmd = self.getConfig("lcd_down_button_command")
+            if cmd is not None:
+                cmd = [cmd]
+                result = subprocess.call(cmd)
     
     def receivedPMCInterrupt(self, isr):
         """Notify reception of a pending PMC interrupt.
@@ -505,13 +553,13 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         
         # test for button presses
         if (isr & wdpmcprotocol.PMC_INTERRUPT_USB_COPY_BUTTON) != 0:
-            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_USB_COPY_BUTTON) != 0
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_USB_COPY_BUTTON) == 0
             self.notifyUSBCopyButton(down_up)
         if (isr & wdpmcprotocol.PMC_INTERRUPT_LCD_UP_BUTTON) != 0:
-            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_UP_BUTTON) != 0
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_UP_BUTTON) == 0
             self.notifyLCDUpButton(down_up)
         if (isr & wdpmcprotocol.PMC_INTERRUPT_LCD_DOWN_BUTTON) != 0:
-            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_DOWN_BUTTON) != 0
+            down_up = (self.__pmc_status & wdpmcprotocol.PMC_INTERRUPT_LCD_DOWN_BUTTON) == 0
             self.notifyLCDDownButton(down_up)
     
     def _resolveGroupId(self, group):
