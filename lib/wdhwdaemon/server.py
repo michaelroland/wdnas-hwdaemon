@@ -630,7 +630,7 @@ class ServerThreadImpl(PacketServerThread):
         try:
             bay_number = packet.parameter[0]
             enable = packet.parameter[1] != 0
-            mask = self.__hw_daemon.pmc.setDriveEnabled(bay_number, enable)
+            mask = self.__hw_daemon.pmc.setDriveAlertLED(bay_number, enable)
         except Exception:
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
