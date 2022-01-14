@@ -71,6 +71,7 @@ sure to adapt paths in [wdhwd.conf](tools/wdhwd.conf) and
     sudo cp -dR . /opt/wdhwd
     sudo chown -R root.root /opt/wdhwd
     sudo chmod -R u=rwX,go=rX /opt/wdhwd
+    sudo chmod -R u=rwx,go=rx /opt/wdhwd/bin/*
     sudo chmod -R u=rwx,go=rx /opt/wdhwd/scripts/*
 
 

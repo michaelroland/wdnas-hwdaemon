@@ -9,17 +9,17 @@ User=wdhwd
 Group=wdhwd
 SupplementaryGroups=i2c dialout
 Environment=
-WorkingDirectory=/opt/wdhwd
+WorkingDirectory=/run/wdhwd
 RuntimeDirectory=wdhwd
 RuntimeDirectoryMode=0750
 #LogsDirectory=wdhwd
 #LogsDirectoryMode=0750
 StandardOutput=inherit
-ExecStart=/usr/bin/python3 -m wdhwdaemon.daemon -q
+ExecStart=/opt/wdhwd/bin/wdhwd -q
 Restart=always
 RestartPreventExitStatus=10 11
-#ExecReload=/usr/bin/python3 -m wdhwdaemon.client -q reload
-ExecStop=/usr/bin/python3 -m wdhwdaemon.client -q shutdown
+#ExecReload=/opt/wdhwd/bin/wdhwc -q reload
+ExecStop=/opt/wdhwd/bin/wdhwc -q shutdown
 KillMode=mixed
 
 [Install]
