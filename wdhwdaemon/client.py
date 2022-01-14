@@ -27,7 +27,7 @@ from threadedsockets.packets import BasicPacket
 from threadedsockets.packetclient import BasicPacketClient
 from threadedsockets.unixsockets import UnixSocketFactory
 
-from wdhwdaemon.daemon import ConfigFile
+from wdhwdaemon.daemon import ConfigFileImpl
 from wdhwdaemon.server import CommandPacket, ResponsePacket
 from wdhwdaemon.server import CloseConnectionWarning
 from wdhwdaemon.server import LEDStatus
@@ -427,7 +427,7 @@ class WdHwClient(object):
         _logger.debug("%s: Loading configuration file '%s'",
                       type(self).__name__,
                       args.config)
-        cfg = ConfigFile(args.config)
+        cfg = ConfigFileImpl(args.config)
         
         conn = WdHwConnector(cfg.socket_path)
         try:
