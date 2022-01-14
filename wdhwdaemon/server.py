@@ -393,7 +393,12 @@ class ServerThreadImpl(PacketServerThread):
         self.sendPacket(packet.createResponse(wdhwdaemon.DAEMON_PROTOCOL_VERSION.encode('utf-8', 'ignore')))
     
     def __commandDaemonShutdown(self, packet):
-        self.sendPacket(packet.createResponse(mirror_keep_alive=False))
+        pid = self.__hw_daemon.daemon_pid
+        self.sendPacket(packet.createResponse(bytearray([(pid >> 24) & 0x0FF,
+                                                         (pid >> 16) & 0x0FF,
+                                                         (pid >>  8) & 0x0FF,
+                                                          pid        & 0x0FF]),
+                                              mirror_keep_alive=False))
         self.__hw_daemon.shutdown()
     
     def __commandPMCVersionGet(self, packet):

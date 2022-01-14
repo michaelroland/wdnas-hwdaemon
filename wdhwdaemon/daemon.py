@@ -210,6 +210,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
     def __init__(self):
         """Initializes a new hardware controller daemon."""
         super().__init__()
+        self.__process_id = os.getpid()
         self.__debug_mode = False
         self.__pmc = None
         self.__pmc_version = ""
@@ -249,6 +250,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 '-d', '--debug', action='store_true',
                 help='enables debug mode commands')
         return cmdparser
+    
+    @property
+    def daemon_pid(self):
+        """int: Process ID of the daemon."""
+        return self.__process_id
     
     @property
     def debug_mode(self):

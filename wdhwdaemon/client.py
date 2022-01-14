@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import logging
+import os
+import time
 
 from threadedsockets.packets import BasicPacket
 from threadedsockets.packetclient import BasicPacketClient
@@ -90,6 +92,13 @@ class WdHwConnector(BasicPacketClient):
     
     def daemonShutdown(self):
         response = self._executeCommand(CommandPacket.CMD_DAEMON_SHUTDOWN)
+        if len(response) > 3:
+            return (((response[0] << 24) & 0x0FF000000) | 
+                    ((response[1] << 16) & 0x000FF0000) | 
+                    ((response[2] <<  8) & 0x00000FF00) | 
+                     (response[3]        & 0x0000000FF))
+        else:
+            raise ValueError("Invalid response format")
     
     def getPMCVersion(self):
         response = self._executeCommand(CommandPacket.CMD_PMC_VERSION_GET)
@@ -596,7 +605,17 @@ class WdHwClient(object):
                 print("PMC temperature: {0} °C".format(pmc_temperature))
             
             elif args.command == "shutdown":
-                conn.daemonShutdown()
+                daemon_pid = conn.daemonShutdown()
+                conn.close()
+                for i in range(0, 60):
+                    print(".", end='', flush=True)
+                    try:
+                        os.kill(daemon_pid, 0)
+                        time.sleep(1)
+                    except:
+                        break
+                print("", flush=True)
+                print("Terminated.")
             
             elif args.command == "pmc_debug":
                 conn.sendDebug(args.pmc_command)
