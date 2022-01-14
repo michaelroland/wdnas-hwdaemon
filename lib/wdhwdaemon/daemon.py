@@ -141,33 +141,44 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
     """Hardware controller daemon configuration holder.
     
     Attributes:
-        user (str): User name or ID to drop privileges to during normal operation.
-        group (str): Group name or ID to drop privileges to during normal operation.
         pmc_port (str): Name of the serial port that the PMC is attached to (leave empty
             for automatic discovery).
         socket_path (str): Path of the UNIX domain socket for controlling the hardware
             controller daemon.
+        socket_group (str): Group name or ID to manage socket priviledges.
         socket_max_clients (int): Maximum number of clients that can concurrently connect
             to the UNIX domain socket.
         log_file (str): The log file name; may be ``None`` to disable file-based logging.
-        log_level (int): The log verbosity level for logging to the log file.
+        logging (str): The log spec that defines per-module log verbosity.
         system_up_command (str): The command to execute when the daemon starts.
         system_down_command (str): The command to execute when the daemon exits.
         drive_presence_changed_command (str): The command to execute when the drive bay
             presence status changed.
         drive_presence_changed_args (List(str)): A list of arguments passed to the
-            command ``drive_presence_changed_command`` (the placeholders "{drive_bay}",
-            "{drive_name}",  and "{status}" may be used).
+            command ``drive_presence_changed_command`` (the placeholders "{drive_bay}"
+            and "{state}" may be used).
         power_supply_changed_command (str): The command to execute when the power supply
             power-up status changed.
         power_supply_changed_args (List(str)): A list of arguments passed to the
             command ``power_supply_changed_command`` (the placeholders "{socket}" and
-            "{status}" may be used).
+            "{state}" may be used).
         temperature_changed_command (str): The command to execute when the temperature
             level changed.
         temperature_changed_args (List(str)): A list of arguments passed to the
             command ``temperature_changed_command`` (the placeholders "{new_level}" and
             "{old_level}" may be used).
+        usb_copy_button_command (str): The command to execute when the USB copy button
+            is pressed.
+        usb_copy_button_long_command (str): The command to execute when the USB copy
+            button is long-pressed.
+        lcd_up_button_command (str): The command to execute when the LCD up button
+            is pressed.
+        lcd_up_button_long_command (str): The command to execute when the LCD up
+            button is long-pressed.
+        lcd_down_button_command (str): The command to execute when the LCD down button
+            is pressed.
+        lcd_down_button_long_command (str): The command to execute when the LCD down
+            button is long-pressed.
     """
     
     def __init__(self, config_file):
