@@ -67,7 +67,12 @@ class PMCCommandsImpl(PMCCommands):
         _logger.info("%s: Received interrupt %X",
                      type(self).__name__,
                      isr)
-        self.__hw_daemon.receivedPMCInterrupt(isr)
+        try:
+            self.__hw_daemon.receivedPMCInterrupt(isr)
+        except Exception as e:
+            _logger.error("%s: Interrupt handler ended with exception: %s",
+                         type(self).__name__,
+                         e)
     
     def sequenceError(self, code, value):
         _logger.error("%s: Out-of-sequence PMC message received (code = '%s', value = '%s')",
@@ -513,7 +518,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         _logger.info("%s: Initiating immediate system shutdown",
                      type(self).__name__)
         if not self.debug_mode:
-            result = subprocess.call(["sudo", "-n", "shutdown", "-P", "now"])
+            try:
+                result = subprocess.call(["sudo", "-n", "shutdown", "-P", "now"])
+            except Exception as e:
+                _logger.error("%s: Failed to execute shutdown command: %s",
+                              type(self).__name__, e)
         else:
             _logger.warning("%s: System shutdown not initiated in debug mode!",
                             type(self).__name__)
@@ -529,7 +538,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      type(self).__name__,
                      grace_period)
         if not self.debug_mode:
-            result = subprocess.call(["sudo", "-n", "shutdown", "-P", "+{0}".format(grace_period)])
+            try:
+                result = subprocess.call(["sudo", "-n", "shutdown", "-P", "+{0}".format(grace_period)])
+            except Exception as e:
+                _logger.error("%s: Failed to execute shutdown command: %s",
+                              type(self).__name__, e)
         else:
             _logger.warning("%s: System shutdown not scheduled in debug mode!",
                             type(self).__name__)
@@ -539,7 +552,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         _logger.info("%s: Cancelling pending system shutdown",
                      type(self).__name__)
         if not self.debug_mode:
-            result = subprocess.call(["sudo", "-n", "shutdown", "-c"])
+            try:
+                result = subprocess.call(["sudo", "-n", "shutdown", "-c"])
+            except Exception as e:
+                _logger.error("%s: Failed to execute shutdown command: %s",
+                              type(self).__name__, e)
         else:
             _logger.warning("%s: System shutdown not scheduled in debug mode!",
                             type(self).__name__)
@@ -552,7 +569,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             cmd = [cmd]
             #for arg in self.getConfig("system_up_args"):
             #    cmd.append(arg.format())
-            result = subprocess.call(cmd)
+            try:
+                result = subprocess.call(cmd)
+            except Exception as e:
+                _logger.error("%s: Failed to execute system_up_command: %s",
+                              type(self).__name__, e)
         
     def notifySystemDown(self):
         """Notify hardware controller daemon stopping.
@@ -562,7 +583,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             cmd = [cmd]
             #for arg in self.getConfig("system_down_args"):
             #    cmd.append(arg.format())
-            result = subprocess.call(cmd)
+            try:
+                result = subprocess.call(cmd)
+            except Exception as e:
+                _logger.error("%s: Failed to execute system_down_command: %s",
+                              type(self).__name__, e)
         
     def temperatureLevelChanged(self, new_level, old_level):
         """Notify change of temperature level.
@@ -579,7 +604,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             for arg in self.getConfig("temperature_changed_args"):
                 cmd.append(arg.format(new_level=str(new_level),
                                       old_level=str(old_level)))
-            result = subprocess.call(cmd)
+            try:
+                result = subprocess.call(cmd)
+            except Exception as e:
+                _logger.error("%s: Failed to execute temperature_changed_command: %s",
+                              type(self).__name__, e)
         
     def notifyDrivePresenceChanged(self, bay_number, present):
         """Notify change of drive presence state.
@@ -598,7 +627,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 cmd.append(arg.format(drive_bay=str(bay_number),
                                       drive_name="",
                                       state="1" if present else "0"))
-            result = subprocess.call(cmd)
+            try:
+                result = subprocess.call(cmd)
+            except Exception as e:
+                _logger.error("%s: Failed to execute drive_presence_changed_command: %s",
+                              type(self).__name__, e)
     
     def notifyPowerSupplyChanged(self, socket_number, powered_up):
         """Notify change of power supply state.
@@ -616,7 +649,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             for arg in self.getConfig("power_supply_changed_args"):
                 cmd.append(arg.format(socket=str(socket_number),
                                       state="1" if powered_up else "0"))
-            result = subprocess.call(cmd)
+            try:
+                result = subprocess.call(cmd)
+            except Exception as e:
+                _logger.error("%s: Failed to execute power_supply_changed_command: %s",
+                              type(self).__name__, e)
     
     def notifyUSBCopyButton(self, down_up):
         """Notify change of USB copy button pressed state.
@@ -639,7 +676,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 cmd = self.getConfig("usb_copy_button_command")
             if cmd is not None:
                 cmd = [cmd]
-                result = subprocess.call(cmd)
+                try:
+                    result = subprocess.call(cmd)
+                except Exception as e:
+                    _logger.error("%s: Failed to execute usb_copy_button_command: %s",
+                                  type(self).__name__, e)
     
     def notifyLCDUpButton(self, down_up):
         """Notify change of LCD up button pressed state.
@@ -662,7 +703,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 cmd = self.getConfig("lcd_up_button_command")
             if cmd is not None:
                 cmd = [cmd]
-                result = subprocess.call(cmd)
+                try:
+                    result = subprocess.call(cmd)
+                except Exception as e:
+                    _logger.error("%s: Failed to execute lcd_up_button_command: %s",
+                                  type(self).__name__, e)
     
     def notifyLCDDownButton(self, down_up):
         """Notify change of LCD down button pressed state.
@@ -685,7 +730,11 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 cmd = self.getConfig("lcd_down_button_command")
             if cmd is not None:
                 cmd = [cmd]
-                result = subprocess.call(cmd)
+                try:
+                    result = subprocess.call(cmd)
+                except Exception as e:
+                    _logger.error("%s: Failed to execute lcd_down_button_command: %s",
+                                  type(self).__name__, e)
     
     def receivedPMCInterrupt(self, isr):
         """Notify reception of a pending PMC interrupt.
