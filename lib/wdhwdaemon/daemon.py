@@ -323,9 +323,9 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         self.__pmc_status = 0
         self.__pmc_drive_presence_mask = 0
         self.__pmc_num_drivebays = 0
-        self.__usb_copy_button_time = time.monotonic()
-        self.__lcd_up_button_time = time.monotonic()
-        self.__lcd_down_button_time = time.monotonic()
+        self.__usb_copy_button_time = None
+        self.__lcd_up_button_time = None
+        self.__lcd_down_button_time = None
         self.__lcd_normal_backlight_intensity = 100
         self.__lcd_dim_timer = None
         self.__temperature_reader = None
@@ -667,7 +667,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         if down_up:
             self.__usb_copy_button_time = time.monotonic()
             self.setLCDNormalBacklightIntensity()
-        else:
+        elif self.__usb_copy_button_time is not None:
             duration = time.monotonic() - self.__usb_copy_button_time
             cmd = None
             if duration > _BUTTON_LONG_PRESS_DURATION:
@@ -694,7 +694,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         if down_up:
             self.__lcd_up_button_time = time.monotonic()
             self.setLCDNormalBacklightIntensity()
-        else:
+        elif self.__lcd_up_button_time is not None:
             duration = time.monotonic() - self.__lcd_up_button_time
             cmd = None
             if duration > _BUTTON_LONG_PRESS_DURATION:
@@ -721,7 +721,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         if down_up:
             self.__lcd_down_button_time = time.monotonic()
             self.setLCDNormalBacklightIntensity()
-        else:
+        elif self.__lcd_down_button_time is not None:
             duration = time.monotonic() - self.__lcd_down_button_time
             cmd = None
             if duration > _BUTTON_LONG_PRESS_DURATION:
