@@ -2,9 +2,9 @@
 
 ################################################################################
 ## 
-## Button pressed notification
+## USB copy button pressed notification
 ## 
-## Copyright (c) 2018 Stefaan Ghysels <stefaang@gmail.com>
+## Copyright (c) 2021 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -21,28 +21,7 @@
 ## 
 ################################################################################
 
-# set a message on LCD
-function show {
-	cd /usr/local/lib/wdhwd
-	python3 -m wdhwdaemon.client lcd -t "$1"
-}
+SCRIPT_NAME=$(basename $0)
+SCRIPT_PATH=$(readlink -f "$(dirname $0)")
 
-USB_PRESSED=/tmp/usb_button_pressed
-if [ ! -e ${USB_PRESSED} ]; then
-	touch ${USB_PRESSED}
-	show "USB button pressed"
-else
-	lastModified=$(date +%s -r ${USB_PRESSED})
-	now=$(date +%s)
-	show "USB button released\nafter $(( $now - $lastModified )) seconds"
-	rm ${USB_PRESSED}
-fi
-
-
-# e.g. backup data from USB
-# rsync -a /mnt/usb/data /mnt/volume/data
-
-# or upload to the cloud
-# cadaver cp /mnt/usb/data somecloud.com
-
-
+$SCRIPT_PATH/lcd_menu.sh "usb_copy"
