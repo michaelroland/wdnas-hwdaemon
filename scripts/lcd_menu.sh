@@ -5,7 +5,7 @@
 ## LCD menu action
 ## 
 ## Copyright (c) 2018-2019 Stefaan Ghysels <stefaang@gmail.com>
-## Copyright (c) 2021 Michael Roland <mi.roland@gmail.com>
+## Copyright (c) 2021-2022 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -34,23 +34,42 @@ action="$1"
 
 
 function show {
-	wdhwc lcd -t "$1" "$2"
+    wdhwc lcd -t "$1" "$2"
+}
+
+function show_r {
+    show "$1" "$(printf "%16s" "$2")"
 }
 
 function get_ip {
 	ip route get 1 | sed -n -E 's/^.*src\s+(\S+).*$/\1/p'
 }
 
-function get_disk_usage {
-	df "$1" -h --output=avail,pcent | awk 'NR==2{print $1" / "$2" used"}'
-}
-
 function get_temperature {
-	wdhwc temperature | sed -n -E 's/^PMC temperature:\s+(.*)$/\1/p'
+	wdhwc temperature | sed -n -E 's/^PMC temperature:\s+(.*)\s+°(C|F)\s*$/\1 \2/p'
 }
 
 function get_fan_speed {
-	wdhwc fan | sed -n -E 's/^Fan speed:\s+(.*)\s+%$/\1%/p'
+	wdhwc fan | sed -n -E 's/^Fan speed:\s+(.*)\s+%\s*$/\1%/p'
+}
+
+function get_all_disk_usage {
+	df -h -l -x tmpfs -x devtmpfs --output=target,size,avail,pcent \
+        | tail -n+2 \
+        | grep -v -E '^/(boot|dev|proc|sys|tmp)(\/|\s)' \
+        | sort -b -k1
+}
+
+function get_disk_name {
+	echo "$1" | sed -n -E 's/^(\S+).*$/\1/p'
+}
+
+function get_disk_free {
+	echo "$1" | sed -n -E 's/^\S+\s+(\S+)\s+(\S+)\s+(\S+)\s*$/\2\/\1 free/p'
+}
+
+function get_disk_usage {
+	echo "$1" | sed -n -E 's/^\S+\s+(\S+)\s+(\S+)\s+(\S+)\s*$/\3 used/p'
 }
 
 
@@ -60,7 +79,12 @@ if [ -d "${RUNTIME_DIRECTORY}" ] ; then
 fi
 menu_position=$(cat "${menu_position_file}" 2>/dev/null || echo 0)
 
-menu_items=5
+base_menu_items=4
+
+disk_usage=$(get_all_disk_usage)
+num_disks=$(echo "$disk_usage" | wc -l)
+
+menu_items=$(( base_menu_items + 2 * num_disks))
 
 case "${action}" in
     "lcd_up_long")
@@ -90,18 +114,30 @@ case "${menu_position}" in
         show "" ""
         ;;
     1)
-        show "IP address:" "$(get_ip)"
+        show_r "IP address:" "$(get_ip)"
         ;;
     2)
-        show "Temperature:" "$(get_temperature)"
+        show_r "Temperature:" "$(get_temperature)"
         ;;
     3)
-        show "Fan speed:" "$(get_fan_speed)"
-        ;;
-    4)
-        show "Root disk usage:" "$(get_disk_usage /)"
+        show_r "Fan speed:" "$(get_fan_speed)"
         ;;
     *)
+        menu_offset=$(( menu_position - base_menu_items ))
+        disk_index=$(( menu_offset / 2 + 1 ))
+        line_index=$(( menu_offset % 2 ))
+        disk_usage_line=$(echo "${disk_usage}" | tail -n+${disk_index} | head -n1)
+        disk_name=$(get_disk_name "${disk_usage_line}")
+        disk_usage=""
+        case "${line_index}" in
+            0)
+                disk_usage=$(get_disk_free "${disk_usage_line}")
+                ;;
+            *)
+                disk_usage=$(get_disk_usage "${disk_usage_line}")
+                ;;
+        esac
+        show_r "Disk: ${disk_name}" "$disk_usage"
         ;;
 esac
 
