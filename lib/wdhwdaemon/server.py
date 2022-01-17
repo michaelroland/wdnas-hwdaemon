@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Server.
 
-Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
