@@ -233,6 +233,11 @@ class ThermalConditionMonitor(object):
             return self.__running
     
     @property
+    def log_name(self):
+        """str: A name for this monitor."""
+        return self._log_name
+    
+    @property
     def level(self):
         """int: Thermal condition level."""
         with self.__lock:
@@ -748,6 +753,19 @@ class FanController(FanControllerCallback):
         """bool: Is the fan controller thread in running state?"""
         with self.__lock:
             return self.__running
+    
+    def getMonitorData(self):
+        """Gets current measurement data of all temperatur monitors.
+        
+        Returns:
+            list(dict): A list of monitor data.
+        """
+        for monitor in self.__monitors:
+            yield {
+                'name': monitor.log_name,
+                'level': monitor.level,
+                'temperature': monitor.temperature,
+            }
     
     def controllerStarted(self):
         pass

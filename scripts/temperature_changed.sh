@@ -29,6 +29,7 @@ sendmail="/usr/sbin/sendmail"
 new_level=$1
 old_level=$2
 event_timestamp=$(date +'%Y-%m-%d %H:%M:%S %z')
+monitor_data=$3
 
 temp_levels=("UNDER" "COOL" "NORMAL" "WARM" "HOT" "DANGER" "SHUTDOWN" "CRITICAL")
 new_level_human=${temp_levels[${new_level}]}
@@ -50,6 +51,7 @@ Hostname: $(hostname -f)
 New level: ${new_level_human} (${new_level})
 Old level: ${old_level_human} (${old_level})
 
+${monitor_data}
 
 System: $(uname -a)
 

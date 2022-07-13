@@ -290,7 +290,7 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "power_supply_changed_command", default=None)
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "temperature_changed_command", default=None)
-        self.declareOption(SECTION, "temperature_changed_args", default=["{new_level}", "{old_level}"], parser=self.parseArray)
+        self.declareOption(SECTION, "temperature_changed_args", default=["{new_level}", "{old_level}", "{monitor_data}"], parser=self.parseArray)
         self.declareOption(SECTION, "usb_copy_button_command", default=None)
         self.declareOption(SECTION, "usb_copy_button_long_command", default=None)
         self.declareOption(SECTION, "lcd_up_button_command", default=None)
@@ -601,9 +601,16 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
         cmd = self.getConfig("temperature_changed_command")
         if cmd is not None:
             cmd = [cmd]
+            monitor_data = []
+            for monitor in self.__fan_controller.getMonitorData():
+                temp_str = f"       N/A"
+                if monitor.temperature is not None:
+                    temp_str = f"{monitor.temperature:7.2f} °C"
+                monitor_data.append(f"{temp_str} @ {monitor.name}"
             for arg in self.getConfig("temperature_changed_args"):
                 cmd.append(arg.format(new_level=str(new_level),
-                                      old_level=str(old_level)))
+                                      old_level=str(old_level),
+                                      monitor_data=str(monitor_data.join("\r\n"))))
             try:
                 result = subprocess.call(cmd)
             except Exception as e:
