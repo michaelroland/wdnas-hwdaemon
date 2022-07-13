@@ -652,8 +652,15 @@ class FanController(FanControllerCallback):
                             fan_speed -= FanController.FAN_STEP_DEC
                             fan_speed_change = True
                     elif global_level == FanController.LEVEL_NORMAL:
-                        if fan_speed != FanController.FAN_DEFAULT:
-                            fan_speed = FanController.FAN_DEFAULT
+                        if fan_speed > FanController.FAN_DEFAULT:
+                            fan_speed -= FanController.FAN_STEP_DEC
+                            if fan_speed < FanController.FAN_DEFAULT:
+                                fan_speed = FanController.FAN_DEFAULT
+                            fan_speed_change = True
+                        elif fan_speed < FanController.FAN_DEFAULT:
+                            fan_speed += FanController.FAN_STEP_INC
+                            if fan_speed > FanController.FAN_DEFAULT:
+                                fan_speed = FanController.FAN_DEFAULT
                             fan_speed_change = True
                     
                     if fan_speed_change:
