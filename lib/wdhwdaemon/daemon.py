@@ -610,7 +610,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             for arg in self.getConfig("temperature_changed_args"):
                 cmd.append(arg.format(new_level=str(new_level),
                                       old_level=str(old_level),
-                                      monitor_data=str(monitor_data.join("\r\n"))))
+                                      monitor_data=str("\r\n".join(monitor_data))))
             try:
                 result = subprocess.call(cmd)
             except Exception as e:
