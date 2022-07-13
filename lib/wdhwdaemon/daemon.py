@@ -606,7 +606,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                 temp_str = f"       N/A"
                 if monitor.temperature is not None:
                     temp_str = f"{monitor.temperature:7.2f} °C"
-                monitor_data.append(f"{temp_str} @ {monitor.name}"
+                monitor_data.append(f"{temp_str} @ {monitor.name}")
             for arg in self.getConfig("temperature_changed_args"):
                 cmd.append(arg.format(new_level=str(new_level),
                                       old_level=str(old_level),
