@@ -374,8 +374,7 @@ class ServerThreadImpl(PacketServerThread):
                       pid, uid, gid,
                       str(remote_address))
         #raise threadedsockets.SocketSecurityException(
-        #        "Connection refused for process (PID={0}, UID={1}, GID={2}) at '{3}'.".format(
-        #                pid, uid, gid, repr(remote_address)))
+        #        f"Connection refused for process (PID={pid}, UID={uid}, GID={gid}) at '{repr(remote_address))}'."
     
     def connectionClosed(self, error):
         if error is not None:

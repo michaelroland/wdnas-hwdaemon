@@ -539,7 +539,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                      grace_period)
         if not self.debug_mode:
             try:
-                result = subprocess.call(["sudo", "-n", "shutdown", "-P", "+{0}".format(grace_period)])
+                result = subprocess.call(["sudo", "-n", "shutdown", "-P", f"+{grace_period}"])
             except Exception as e:
                 _logger.error("%s: Failed to execute shutdown command: %s",
                               type(self).__name__, e)

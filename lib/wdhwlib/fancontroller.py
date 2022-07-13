@@ -430,7 +430,7 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
             ])
         self.__reader = temperature_reader
         self.__drive = drive
-        self._log_name = "{0}({1})".format(type(self).__name__, drive)
+        self._log_name = f"{type(self).__name__}({drive})"
     
     def _getCurrentTemperature(self):
         """Get the current temperature reading of this monitor.

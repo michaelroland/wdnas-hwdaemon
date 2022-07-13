@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Configuration file handling.
 
-Copyright (c) 2017-2019 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -52,12 +52,11 @@ class AbstractConfigFile(object):
                 _logger.error("%s: Configuration file '%s' not found",
                               type(self).__name__,
                               config_file)
-                #raise ConfigFileError("Configuration file '{0}' not found".format(config_file))
+                #raise ConfigFileError(f"Configuration file '{config_file}' not found")
         except ConfigFileError:
             raise
         except Exception as e:
-            raise ConfigFileError("{0} while parsing configuration file '{1}'".format(
-                    type(e).__name__, config_file)) from e
+            raise ConfigFileError(f"{type(e).__name__} while parsing configuration file '{config_file}'") from e
     
     def declareOption(self, option_section, option_name, attribute_name=None, default=None, parser=str, parser_args=None):
         if attribute_name is None:
@@ -71,12 +70,9 @@ class AbstractConfigFile(object):
                 option_value = parser(option_raw_value, **parser_args)
             setattr(self, attribute_name, option_value)
         except ValueError as e:
-            raise ConfigFileError("Invalid value for option {2}"
-                                  " (in section {1} of {0}): {3}".format(
-                                          self.__file,
-                                          option_section,
-                                          option_name,
-                                          type(e).__name__)) from e
+            raise ConfigFileError(f"Invalid value for option {option_name}"
+                                  f" (in section {option_section} of {self.__file}):"
+                                  f" {type(e).__name__}") from e
     
     @staticmethod
     def parseBoolean(value):
@@ -86,7 +82,7 @@ class AbstractConfigFile(object):
         elif value in ["0", "false", "no", "n", "off"]:
             return False
         else:
-            raise ValueError("'{0}' is not a valid boolean value".format(value))
+            raise ValueError(f"'{value}' is not a valid boolean value")
     
     @staticmethod
     def parseInteger(value):
@@ -112,7 +108,7 @@ class AbstractConfigFile(object):
         elif value in ["none", "no", "n", "off", "false"]:
             return 2 * logging.CRITICAL
         else:
-            raise ValueError("'{0}' is not a valid log level".format(value))
+            raise ValueError(f"'{value}' is not a valid log level")
     
     @staticmethod
     def parseLogSpec(value):
@@ -147,7 +143,7 @@ class AbstractConfigFile(object):
                 result.append(parser(element, **parser_args))
             return result
         except ValueError as e:
-            raise ValueError("'{0}' is not a valid array value".format(value)) from e
+            raise ValueError(f"'{value}' is not a valid array value") from e
     
     @staticmethod
     def parseJson(value):
@@ -155,7 +151,7 @@ class AbstractConfigFile(object):
             parsed_value = json.loads(value)
             return parsed_value
         except ValueError as e:
-            raise ValueError("'{0}' is not a valid JSON value".format(value)) from e
+            raise ValueError(f"'{value}' is not a valid JSON value") from e
 
 
 if __name__ == "__main__":

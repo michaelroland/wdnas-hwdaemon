@@ -74,13 +74,13 @@ class WdHwConnector(BasicPacketClient):
             _logger.error("%s: Received unexpected response '%02X' for command '%02X'",
                           type(self).__name__,
                           response.identifier, command_code)
-            raise CloseConnectionWarning("Unexpected response '{:02X}' received".format(response.identifier))
+            raise CloseConnectionWarning(f"Unexpected response '{response.identifier:02X}' received")
         elif response.is_error:
             # error
             _logger.error("%s: Received error '%02X'",
                           type(self).__name__,
                           response.error_code)
-            raise CloseConnectionWarning("Error '{:02X}' received".format(response.error_code))
+            raise CloseConnectionWarning(f"Error '{response.error_code:02X}' received")
         else:
             # success
             _logger.debug("%s: Received successful response (%s)",
@@ -302,12 +302,12 @@ class WdHwClient(object):
                 dest='command', metavar='COMMAND', title='available subcommands')
         
         cmd_version = subparsers.add_parser('version', help='get system version command',
-                description="{}\nversion: get system version command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nversion: get system version command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         
         cmd_led = subparsers.add_parser('led', help='LED control command',
-                description="{}\nled: LED control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nled: LED control command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_led_type = cmd_led.add_argument_group(title='LED type to control')
@@ -346,7 +346,7 @@ class WdHwClient(object):
                 help='blue on (defaults to off when option is absent)')
         
         cmd_fan = subparsers.add_parser('fan', help='fan control command',
-                description="{}\nfan: fan control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nfan: fan control command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_fan_action = cmd_fan.add_argument_group(title='fan action mode')
@@ -360,12 +360,12 @@ class WdHwClient(object):
                 help='set fan speed in percent')
         
         cmd_temperature = subparsers.add_parser('temperature', help='get system temperature command',
-                description="{}\ntemperature: get system temperature command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\ntemperature: get system temperature command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         
         cmd_lcd = subparsers.add_parser('lcd', help='LCD control command',
-                description="{}\nlcd: LCD control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nlcd: LCD control command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_lcd_action = cmd_lcd.add_argument_group(title='LCD action mode')
@@ -383,7 +383,7 @@ class WdHwClient(object):
                 help='set LCD backlight intensity in percent')
         
         cmd_drive = subparsers.add_parser('drive', help='drive bay control command',
-                description="{}\ndrive: drive bay control command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\ndrive: drive bay control command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_drive_action = cmd_drive.add_argument_group(title='drive bay action mode')
@@ -413,17 +413,17 @@ class WdHwClient(object):
                 help='disable alert LED for drive bay number %(metavar)s')
         
         cmd_power = subparsers.add_parser('power', help='get power supply status command',
-                description="{}\npower: get power supply status command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\npower: get power supply status command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         
         cmd_shutdown = subparsers.add_parser('shutdown', help='daemon shutdown command',
-                description="{}\nshutdown: daemon shutdown command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nshutdown: daemon shutdown command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         
         cmd_pmc_debug = subparsers.add_parser('pmc_debug', help='PMC debug command',
-                description="{}\npmc_debug: PMC debug command".format(wdhwdaemon.CLIENT_DESCRIPTION),
+                description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\npmc_debug: PMC debug command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
         cmd_pmc_debug_action = cmd_pmc_debug.add_argument_group(title='PMC debug command')
@@ -467,8 +467,8 @@ class WdHwClient(object):
             if args.command == "version":
                 daemon_version = conn.getVersion()
                 pmc_version = conn.getPMCVersion()
-                print("Daemon version: {0}".format(daemon_version))
-                print("PMC version: {0}".format(pmc_version))
+                print(f"Daemon version: {daemon_version}")
+                print(f"PMC version: {pmc_version}")
             
             elif args.command == "led":
                 if args.get or ((not args.steady) and (not args.blink) and (not args.pulse)):
@@ -539,8 +539,8 @@ class WdHwClient(object):
                     fan_rpm = conn.getFanRPM()
                     fan_tac = conn.getFanTachoCount()
                     fan_speed = conn.getFanSpeed()
-                    print("Fan speed: {0} RPM at {1} %".format(fan_rpm, fan_speed))
-                    print("Fan tacho count: {0} pulses per second".format(fan_tac))
+                    print(f"Fan speed: {fan_rpm} RPM at {fan_speed} %")
+                    print(f"Fan tacho count: {fan_tac} pulses per second")
                 else:
                     if (args.speed < 0) or (args.speed > 100):
                         cmdparser.error("Parameter SPEED is out of valid range (0 <= SPEED <= 100)")
@@ -553,10 +553,10 @@ class WdHwClient(object):
                     backlight_intensity_normal = conn.getLCDNormalBacklightIntensity()
                     backlight_intensity_dimmed = conn.getLCDDimmedBacklightIntensity()
                     dim_timeout = conn.getLCDDimTimeout()
-                    print("Current LCD backlight intensity: {0:3d} %".format(backlight_intensity))
-                    print("Normal LCD backlight intensity:  {0:3d} %".format(backlight_intensity_normal))
-                    print("Dimmed LCD backlight intensity:  {0:3d} %".format(backlight_intensity_dimmed))
-                    print("LCD dim timeout: {0} s".format(dim_timeout))
+                    print(f"Current LCD backlight intensity: {backlight_intensity:3d} %")
+                    print(f"Normal LCD backlight intensity:  {backlight_intensity_normal:3d} %")
+                    print(f"Dimmed LCD backlight intensity:  {backlight_intensity_dimmed:3d} %")
+                    print(f"LCD dim timeout: {dim_timeout} s")
                 else:
                     if args.text:
                         conn.setLCDText(1, args.text[0])
@@ -632,7 +632,7 @@ class WdHwClient(object):
             
             elif args.command == "temperature":
                 pmc_temperature = conn.getPMCTemperature()
-                print("PMC temperature: {0} °C".format(pmc_temperature))
+                print("PMC temperature: {pmc_temperature} °C")
             
             elif args.command == "shutdown":
                 daemon_pid = conn.daemonShutdown()

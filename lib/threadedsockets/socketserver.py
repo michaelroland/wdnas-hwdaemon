@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Thread-based Server-side Socket Interface.
 
-Copyright (c) 2017-2019 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ class SocketServerThread(object):
                         offset += bytes_sent
                     else:
                         # no data sent: connection broken?
-                        raise SocketConnectionBrokenError("socket.send() returned {0}".format(bytes_sent))
+                        raise SocketConnectionBrokenError(f"socket.send() returned {bytes_sent}")
     
     @property
     def is_busy(self):

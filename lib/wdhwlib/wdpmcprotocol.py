@@ -357,7 +357,7 @@ class PMCProcessor(TerminatedPacketProcessor):
         """
         command = command_code
         if command_value is not None:
-            command = "{0}={1}".format(command_code, command_value)
+            command = f"{command_code}={command_value}"
         (response_code, response_value) = self.__sendCommandAndWaitForResponse(command)
         if response_code == _PMC_RESPONSE_ACKNOWLEDGE:
             # ACK received
@@ -370,8 +370,7 @@ class PMCProcessor(TerminatedPacketProcessor):
             return response_value
         else:
             # unexpected response received
-            raise PMCUnexpectedResponseError("Unexpected response '{0}' "
-                                             "received".format(response_code))
+            raise PMCUnexpectedResponseError(f"Unexpected response '{response_code}' received")
 
 
 class PMCCommands(PMCInterruptCallback):
@@ -553,9 +552,7 @@ class PMCCommands(PMCInterruptCallback):
             config_mask = int(match.group(1), 16)
             return config_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(config_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{config_field}' does not match expected format")
     
     def setConfiguration(self, configuration):
         """Set PMC configuration register.
@@ -577,9 +574,8 @@ class PMCCommands(PMCInterruptCallback):
         #       - Bit 1: ??? (set upon power-up)
         #       - Bit 2-7: ??? (cleared upon power-up)
         # Response: ACK | ERR
-        configuration_mask = configuration
-        configuration_field = "{0:02X}".format(configuration_mask & 0x0FF)
-        self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION, status_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_CONFIGURATION,
+                                           f"{(configuration & 0x0FF):02X}")
     
     def getStatus(self):
         """Get the PMC power-up status information.
@@ -619,9 +615,7 @@ class PMCCommands(PMCInterruptCallback):
             status_mask = int(match.group(1), 16)
             return status_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def getTemperature(self):
         """Get the PMC temperature reading.
@@ -647,9 +641,7 @@ class PMCCommands(PMCInterruptCallback):
             temperature = int(match.group(1), 16)
             return temperature
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def getLEDStatus(self):
         """Get the LED steady status.
@@ -677,9 +669,7 @@ class PMCCommands(PMCInterruptCallback):
             status_mask = int(match.group(1), 16)
             return status_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setLEDStatus(self, on_mask):
         """Set the LED steady status.
@@ -710,8 +700,8 @@ class PMCCommands(PMCInterruptCallback):
         #       - 0b00010000: USB button LED blue
         #       - 0b00011000: USB button LED purple (red+blue)
         # Response: ACK | ERR
-        status_field = "{0:02X}".format(on_mask & 0x01F)
-        self.__processor.transceiveCommand(_PMC_COMMAND_LED_STATUS, status_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_LED_STATUS,
+                                           f"{(on_mask & 0x01F):02X}")
     
     def getLEDBlink(self):
         """Get the LED blinking status.
@@ -739,9 +729,7 @@ class PMCCommands(PMCInterruptCallback):
             status_mask = int(match.group(1), 16)
             return status_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setLEDBlink(self, blink_mask):
         """Set the LED blinking status.
@@ -772,8 +760,8 @@ class PMCCommands(PMCInterruptCallback):
         #       - 0b00010000: USB button LED blink blue
         #       - 0b00011000: USB button LED blink purple or toggle blue/red (depends on steady LED state)
         # Response: ACK | ERR
-        status_field = "{0:02X}".format(blink_mask & 0x01F)
-        self.__processor.transceiveCommand(_PMC_COMMAND_LED_BLINK, status_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_LED_BLINK,
+                                           f"{(blink_mask & 0x01F):02X}")
     
     def getPowerLEDPulse(self):
         """Is the power LED pulsing?
@@ -800,9 +788,7 @@ class PMCCommands(PMCInterruptCallback):
             status_value = int(match.group(1), 16)
             return status_value != 0
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setPowerLEDPulse(self, pulse):
         """Turn power LED pulsing on or off.
@@ -825,8 +811,8 @@ class PMCCommands(PMCInterruptCallback):
         # Response: ACK | ERR
         pulse_mask = PMC_LED_NONE
         if pulse: pulse_mask = PMC_LED_POWER_BLUE
-        status_field = "{0:02X}".format(pulse_mask & 0x001)
-        self.__processor.transceiveCommand(_PMC_COMMAND_LED_PULSE, status_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_LED_PULSE,
+                                           f"{(pulse_mask & 0x001):02X}")
 
     def getLCDBacklightIntensity(self):
         """Get LCD backlight intensity.
@@ -853,9 +839,7 @@ class PMCCommands(PMCInterruptCallback):
             backlight_value = int(match.group(1), 16)
             return backlight_value
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
 
     def setLCDBacklightIntensity(self, intensity):
         """Set LCD backlight intensity.
@@ -878,8 +862,8 @@ class PMCCommands(PMCInterruptCallback):
             intensity = 0
         elif intensity > 100:
             intensity = 100
-        intensity_field = "{0:02X}".format(intensity)
-        self.__processor.transceiveCommand(_PMC_COMMAND_LCD_BACKLIGHT, intensity_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_LCD_BACKLIGHT,
+                                           f"{intensity:02X}")
     
     def setLCDText(self, line, value):
         """Set a line of text on the LCD.
@@ -940,9 +924,7 @@ class PMCCommands(PMCInterruptCallback):
             speed_rpm = int(match.group(1), 16)
             return speed_rpm
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def getFanTachoCount(self):
         """Get the measured fan speed in tacho pulses per second.
@@ -970,9 +952,7 @@ class PMCCommands(PMCInterruptCallback):
             speed_tac = int(match.group(1), 16)
             return speed_tac
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def getFanSpeed(self):
         """Get the configured fan speed in percent.
@@ -999,9 +979,7 @@ class PMCCommands(PMCInterruptCallback):
             speed = int(match.group(1), 16)
             return speed
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setFanSpeed(self, speed):
         """Set the fan speed in percent.
@@ -1025,8 +1003,8 @@ class PMCCommands(PMCInterruptCallback):
         elif speed > 99:
             # WD's wdhws seems to enforce this limit so we should probably do this too!
             speed = 99
-        speed_field = "{0:02X}".format(speed)
-        self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED, speed_field)
+        self.__processor.transceiveCommand(_PMC_COMMAND_FAN_SPEED,
+                                           f"{speed:02X}")
     
     def getDriveEnabledMask(self):
         """Get drive bay power-up and LED status information.
@@ -1065,9 +1043,7 @@ class PMCCommands(PMCInterruptCallback):
             drivebay_mask = int(match.group(1), 16)
             return drivebay_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def getDrivePresenceMask(self):
         """Get drive presence status information.
@@ -1104,9 +1080,7 @@ class PMCCommands(PMCInterruptCallback):
             drivebay_mask = int(match.group(1), 16)
             return drivebay_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setDriveEnabled(self, bay_number, enable):
         """Change drive bay power state.
@@ -1127,7 +1101,6 @@ class PMCCommands(PMCInterruptCallback):
             bay_number = 0
         elif bay_number > 3:
             bay_number = 3
-        drivebay_mask_field = "{0:02X}".format(1 << bay_number)
         if enable:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power on)
@@ -1139,7 +1112,7 @@ class PMCCommands(PMCInterruptCallback):
             #   - Sets the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
-                                               drivebay_mask_field)
+                                               f"{(1 << bay_number):02X}")
         else:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask in lower nibble for drive bay power (DLS turns power off)
@@ -1148,7 +1121,7 @@ class PMCCommands(PMCInterruptCallback):
             #   - Clears the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
-                                               drivebay_mask_field)
+                                               f"{(1 << bay_number):02X}")
     
     def setDriveAlertLED(self, bay_number, enable):
         """Change drive bay alert LED (red) state.
@@ -1169,7 +1142,6 @@ class PMCCommands(PMCInterruptCallback):
             bay_number = 0
         elif bay_number > 3:
             bay_number = 3
-        drivebay_mask_field = "{0:02X}".format(1 << (bay_number + 4))
         if enable:
             # Command: DLC=%X
             #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLC turns LED on)
@@ -1181,7 +1153,7 @@ class PMCCommands(PMCInterruptCallback):
             #   - Clears the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_CLEAR,
-                                               drivebay_mask_field)
+                                               f"{(1 << (bay_number + 4)):02X}")
         else:
             # Command: DLS=%X
             #   - Parameter (1 byte): bitmask in upper nibble for drive bay alert LED (red) (DLS turns LED off)
@@ -1190,7 +1162,7 @@ class PMCCommands(PMCInterruptCallback):
             #   - Sets the specified bits in DE0
             # Response: ACK | ERR
             self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_POWERUP_SET,
-                                               drivebay_mask_field)
+                                               f"{(1 << (bay_number + 4)):02X}")
 
     def getDriveAlertLEDBlinkMask(self):
         """Get drive bay alert LED (red) blinking state.
@@ -1220,9 +1192,7 @@ class PMCCommands(PMCInterruptCallback):
             status_value = int(match.group(1), 16)
             return (status_value & 0x0F0) >> 4
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     def setDriveAlertLEDBlinkMask(self, blink_mask):
         """Change drive bay alert LED (red) blinking state.
@@ -1246,9 +1216,8 @@ class PMCCommands(PMCInterruptCallback):
         #       - Bit 6: Set when drive alert LED (red) for bay 2 is blinking, cleared when alert LED is off/not blinking.
         #       - Bit 7: Set when drive alert LED (red) for bay 3 (right on PR4100) is blinking, cleared when alert LED is off/not blinking.
         # Response: ACK | ERR
-        status_field = "{0:02X}".format((blink_mask << 4) & 0x0F0)
         self.__processor.transceiveCommand(_PMC_COMMAND_DRIVEBAY_LED_BLINK,
-                                           status_field)
+                                           f"{((blink_mask << 4) & 0x0F0):02X}")
     
     def setInterruptMask(self, mask=PMC_INTERRUPT_MASK_ALL):
         """Set the interrupt mask in order to enable/request interrupts.
@@ -1267,9 +1236,8 @@ class PMCCommands(PMCInterruptCallback):
         # Command: IMR=FF
         #   - Parameter (1 byte): See getInterruptStatus()
         # Response: ACK | ERR
-        mask_field = "{0:02X}".format(mask)
         self.__processor.transceiveCommand(_PMC_COMMAND_INTERRUPT_MASK,
-                                           mask_field)
+                                           f"{mask:02X}")
     
     def getInterruptStatus(self):
         """Get the pending interrupt status.
@@ -1318,9 +1286,7 @@ class PMCCommands(PMCInterruptCallback):
             interrupt_mask = int(match.group(1), 16)
             return interrupt_mask
         else:
-            raise PMCUnexpectedResponseError("Response argument '{0}' "
-                                             "does not match expected "
-                                             "format".format(status_field))
+            raise PMCUnexpectedResponseError(f"Response argument '{status_field}' does not match expected format")
     
     #ECH -> https://community.wd.com/t/my-cloud-pr4100-pr2100-firmware/200873/250:
     #    Observed values on DL2100:

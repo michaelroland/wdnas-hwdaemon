@@ -46,7 +46,7 @@ _CPUINFO_REGEX_CORES = re.compile(r"^cpu\s+cores.*:\s*([0-9]+)\s*$")
 _CORETEMP_DEVICES_PATH = "/sys/class/hwmon"
 _CORETEMP_SENSORNAME_FILE = "name"
 _CORETEMP_SENSORNAME_VALUE = "coretemp"
-_CORETEMP_SENSOR_FILEBASE = "temp{0:d}_{1}"
+_CORETEMP_SENSOR_FILEBASE = "temp{cpu:d}_{value}"
 _CORETEMP_CORE_OFFSET = 2
 _CORETEMP_TYPE_JUNCTION_VALUE = "input"
 _CORETEMP_TYPE_JUNCTION_REGULAR_MAX = "max"
@@ -148,8 +148,8 @@ class TemperatureReader(object):
         if self.__CORETEMP is None:
             return None
         
-        file_name = self.__CORETEMP.format(_CORETEMP_CORE_OFFSET + cpu_index,
-                                           value_type)
+        file_name = self.__CORETEMP.format(cpu=_CORETEMP_CORE_OFFSET + cpu_index,
+                                           value=value_type)
         try:
             with open(file_name, 'rt', encoding='utf-8', errors='replace') as f:
                 raw_value = f.readline()

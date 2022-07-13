@@ -24,11 +24,11 @@ __version__ = "1.0"
 __author__  = "Michael Roland"
 
 
-DAEMON_VERSION = "%(prog)s v{version}".format(version=__version__)
+DAEMON_VERSION = f"%(prog)s v{__version__}"
 DAEMON_DESCRIPTION = "Western Digital Hardware Controller Daemon"
 CLIENT_DESCRIPTION = "Western Digital Hardware Controller Client"
 DAEMON_EPILOG = """
-Copyright (c) 2017-2021 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
 Copyright (c) 2019 Stefaan Ghysels <stefaang@gmail.com>
 License GPLv3+: GNU GPL version 3 or later <http://www.gnu.org/licenses/>
 
@@ -36,7 +36,7 @@ This is free software: you can redistribute and/or modify it under the
 terms of the GPLv3+.  There is NO WARRANTY; not even the implied warranty
 of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
-DAEMON_PROTOCOL_VERSION = "WDHWD v{version}".format(version=__version__)
+DAEMON_PROTOCOL_VERSION = f"WDHWD v{__version__}"
 DAEMON_USER_DEFAULT = "wdhwd"
 DAEMON_CONFIG_FILE_DEFAULT = "/etc/wdhwd/wdhwd.conf"
 DAEMON_SOCKET_FILE_DEFAULT = "/run/wdhwd/hws.sock"

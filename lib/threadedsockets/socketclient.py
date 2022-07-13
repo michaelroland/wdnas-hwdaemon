@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Thread-based Client-side Socket Interface.
 
-Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ class BasicSocketClient(object):
                 return data
             else:
                 # no data received: connection broken?
-                raise SocketConnectionBrokenError("socket.recv() returned {0}".format(data))
+                raise SocketConnectionBrokenError(f"socket.recv() returned {data}")
     
     def sendData(self, data):
         """Send data over the remote socket connection.
@@ -97,7 +97,7 @@ class BasicSocketClient(object):
                     offset += bytes_sent
                 else:
                     # no data received: connection broken?
-                    raise SocketConnectionBrokenError("socket.send() returned {0}".format(bytes_sent))
+                    raise SocketConnectionBrokenError(f"socket.send() returned {bytes_sent}")
 
 
 class ThreadedSocketClient(BasicSocketClient):
