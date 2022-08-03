@@ -632,7 +632,7 @@ class WdHwClient(object):
             
             elif args.command == "temperature":
                 pmc_temperature = conn.getPMCTemperature()
-                print("PMC temperature: {pmc_temperature} °C")
+                print(f"PMC temperature: {pmc_temperature} °C")
             
             elif args.command == "shutdown":
                 daemon_pid = conn.daemonShutdown()
