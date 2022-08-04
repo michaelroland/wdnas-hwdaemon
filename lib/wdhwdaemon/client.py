@@ -389,7 +389,7 @@ class WdHwClient(object):
                 description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\ntemperature: get system temperature command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
-        cmd_fan_action.add_argument(
+        cmd_temperature.add_argument(
                 '-a', '--all', action='store_true',
                 help='get all temperature monitor measurements')
         
