@@ -93,7 +93,7 @@ class CommandPacket(BasicPacket):
     PACKET_MAGIC_BYTE = 0x0A5
     FLAGS_FIELD_SIZE = 1
     IDENTIFIER_FIELD_SIZE = 2
-    LENGTH_FIELD_SIZE = 1
+    LENGTH_FIELD_SIZE = 2
     
     def createResponse(self, parameter=None, more_flags=0, mirror_keep_alive=True):
         """Create a response packet for this command.
