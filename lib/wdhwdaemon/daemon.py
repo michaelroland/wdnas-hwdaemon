@@ -99,7 +99,28 @@ class FanControllerImpl(FanController):
             temperature_reader (TemperatureReader): An instance of the temperature reader.
         """
         self.__hw_daemon = hw_daemon
+        self.__fan_speed_normal = self.__hw_daemon.getConfig("fan_speed_normal")
+        self.__fan_speed_increment = self.__hw_daemon.getConfig("fan_speed_increment")
+        self.__fan_speed_decrement = self.__hw_daemon.getConfig("fan_speed_decrement")
         super().__init__(pmc, temperature_reader)
+    
+    @property
+    def fan_speed_normal(self):
+        if self.__fan_speed_normal is None:
+            return super().fan_speed_normal
+        return self.__fan_speed_normal
+    
+    @property
+    def fan_speed_increment(self):
+        if self.__fan_speed_increment is None:
+            return super().fan_speed_increment
+        return self.__fan_speed_increment
+    
+    @property
+    def fan_speed_decrement(self):
+        if self.__fan_speed_decrement is None:
+            return super().fan_speed_decrement
+        return self.__fan_speed_decrement
     
     def controllerStarted(self):
         _logger.debug("%s: Fan controller started",
@@ -300,6 +321,9 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "lcd_intensity_normal", default=100, parser=self.parseInteger)
         self.declareOption(SECTION, "lcd_intensity_dimmed", default=0, parser=self.parseInteger)
         self.declareOption(SECTION, "lcd_dim_timeout", default=60, parser=self.parseInteger)
+        self.declareOption(SECTION, "fan_speed_normal", default=None, parser=self.parseInteger)
+        self.declareOption(SECTION, "fan_speed_increment", default=None, parser=self.parseInteger)
+        self.declareOption(SECTION, "fan_speed_decrement", default=None, parser=self.parseInteger)
 
 
 class WdHwDaemon(daemonize.daemon.AbstractDaemon):

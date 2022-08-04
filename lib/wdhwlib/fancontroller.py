@@ -650,22 +650,22 @@ class FanController(FanControllerCallback):
                             fan_speed_change = True
                     elif global_level > FanController.LEVEL_NORMAL:
                         if fan_speed < FanController.FAN_MAX:
-                            fan_speed += FanController.FAN_STEP_INC
+                            fan_speed += self.fan_speed_increment
                             fan_speed_change = True
                     elif global_level < FanController.LEVEL_NORMAL:
                         if fan_speed > FanController.FAN_MIN:
-                            fan_speed -= FanController.FAN_STEP_DEC
+                            fan_speed -= self.fan_speed_decrement
                             fan_speed_change = True
                     elif global_level == FanController.LEVEL_NORMAL:
-                        if fan_speed > FanController.FAN_DEFAULT:
-                            fan_speed -= FanController.FAN_STEP_DEC
-                            if fan_speed < FanController.FAN_DEFAULT:
-                                fan_speed = FanController.FAN_DEFAULT
+                        if fan_speed > self.fan_speed_normal:
+                            fan_speed -= self.fan_speed_decrement
+                            if fan_speed < self.fan_speed_normal:
+                                fan_speed = self.fan_speed_normal
                             fan_speed_change = True
-                        elif fan_speed < FanController.FAN_DEFAULT:
-                            fan_speed += FanController.FAN_STEP_INC
-                            if fan_speed > FanController.FAN_DEFAULT:
-                                fan_speed = FanController.FAN_DEFAULT
+                        elif fan_speed < self.fan_speed_normal:
+                            fan_speed += self.fan_speed_increment
+                            if fan_speed > self.fan_speed_normal:
+                                fan_speed = self.fan_speed_normal
                             fan_speed_change = True
                     
                     if fan_speed_change:
@@ -766,6 +766,18 @@ class FanController(FanControllerCallback):
                 'level': monitor.level,
                 'temperature': monitor.temperature,
             }
+    
+    @property
+    def fan_speed_normal(self):
+        return FanController.FAN_DEFAULT
+    
+    @property
+    def fan_speed_increment(self):
+        return FanController.FAN_STEP_INC
+    
+    @property
+    def fan_speed_decrement(self):
+        return FanController.FAN_STEP_DEC
     
     def controllerStarted(self):
         pass
