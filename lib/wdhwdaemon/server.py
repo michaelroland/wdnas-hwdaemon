@@ -87,6 +87,7 @@ class CommandPacket(BasicPacket):
     CMD_DRIVE_ALERT_LED_SET = 0x0134
     CMD_DRIVE_ALERT_LED_BLINK_SET = 0x0136
     CMD_DRIVE_ALERT_LED_BLINK_GET = 0x0137
+    CMD_MONITOR_TEMPERATURE_GET = 0x0141
     CMD_PMC_DEBUG = 0x01FF
     
     PACKET_MAGIC_BYTE = 0x0A5
@@ -355,6 +356,7 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_DRIVE_ALERT_LED_SET:            self.__commandDriveAlertLEDSet,
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_SET:      self.__commandDriveAlertLEDBlinkSet,
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_GET:      self.__commandDriveAlertLEDBlinkGet,
+                CommandPacket.CMD_MONITOR_TEMPERATURE_GET:        self.__commandMonitorTemperatureGet,
         }
         if self.__hw_daemon.debug_mode:
             self.__COMMANDS.update({
@@ -683,6 +685,26 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
         else:
             self.sendPacket(packet.createResponse(bytearray([mask])))
+    
+    def __commandMonitorTemperatureGet(self, packet):
+        try:
+            monitor_data = bytearray()
+            for monitor in self.__hw_daemon.fan_controller.getMonitorData():
+                monitor_data.extend(
+                    struct.pack(">B", (0b00000001 if monitor['temperature'] is not None else 0) |
+                                      (0b00000010 if monitor['level']       is not None else 0) |
+                                      (0b00000100 if monitor['name']        is not None else 0)))
+                if monitor['temperature'] is not None:
+                    monitor_data.extend(struct.pack(">f", monitor['temperature']))
+                if monitor['level'] is not None:
+                    monitor_data.extend(struct.pack(">B", monitor['level']))
+                if monitor['name'] is not None:
+                    name = monitor['name'].encode('utf-8', 'ignore')
+                    monitor_data.extend(struct.pack(f">I{len(name)}s", len(name), name))
+        except Exception:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_EXECUTION_FAILED))
+        else:
+            self.sendPacket(packet.createResponse(monitor_data))
     
     def __commandPMCDebug(self, packet):
         raw_command = packet.parameter.decode('ascii', 'ignore')

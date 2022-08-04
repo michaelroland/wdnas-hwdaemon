@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import logging
 import os
+import struct
 import time
 
 from threadedsockets.packets import BasicPacket
@@ -255,6 +256,29 @@ class WdHwConnector(BasicPacketClient):
             return response[0]
         else:
             raise ValueError("Invalid response format")
+    
+    def getMonitorTemperature(self):
+        response = self._executeCommand(CommandPacket.CMD_MONITOR_TEMPERATURE_GET)
+        monitor_data = []
+        offset = 0
+        while len(response) > offset:
+            monitor = { 'name': None, 'temperature': None, 'level': None }
+            flags = struct.unpack_from(">B", response, offset)
+            offset += struct.calcsize(">B")
+            if (flags & 0b00000001) != 0:
+                monitor['temperature'] = struct.unpack_from(">f", response, offset)
+                offset += struct.calcsize(">f")
+            if (flags & 0b00000010) != 0:
+                monitor['level'] = struct.unpack_from(">B", response, offset)
+                offset += struct.calcsize(">B")
+            if (flags & 0b00000100) != 0:
+                name_len = struct.unpack_from(">I", response, offset)
+                offset += struct.calcsize(">I")
+                name_bytes = struct.unpack_from(f"{name_len}s", response, offset)
+                offset += struct.calcsize(f"{name_len}s")
+                monitor['name'] = name_bytes.decode('utf-8', 'ignore')
+            monitor_data.append(monitor)
+        return monitor_data
     
     def sendDebug(self, raw_command):
         response = self._executeCommand(CommandPacket.CMD_PMC_DEBUG,
@@ -633,6 +657,11 @@ class WdHwClient(object):
             elif args.command == "temperature":
                 pmc_temperature = conn.getPMCTemperature()
                 print(f"PMC temperature: {pmc_temperature} °C")
+                for monitor in conn.getMonitorTemperature():
+                    if monitor['temperature'] is not None:
+                        print(f"{monitor['name']}: {monitor['temperature']:.2f} °C")
+                    else:
+                        print(f"{monitor['name']}: N/A")
             
             elif args.command == "shutdown":
                 daemon_pid = conn.daemonShutdown()
