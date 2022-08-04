@@ -263,18 +263,20 @@ class WdHwConnector(BasicPacketClient):
         offset = 0
         while len(response) > offset:
             monitor = { 'name': None, 'temperature': None, 'level': None }
-            flags = struct.unpack_from(">B", response, offset)
+            (flags, ) = struct.unpack_from(">B", response, offset)
             offset += struct.calcsize(">B")
             if (flags & 0b00000001) != 0:
-                monitor['temperature'] = struct.unpack_from(">f", response, offset)
+                (temperature, ) = struct.unpack_from(">f", response, offset)
                 offset += struct.calcsize(">f")
+                monitor['temperature'] = temperature
             if (flags & 0b00000010) != 0:
-                monitor['level'] = struct.unpack_from(">B", response, offset)
+                (level, ) = struct.unpack_from(">B", response, offset)
                 offset += struct.calcsize(">B")
+                monitor['level'] = level
             if (flags & 0b00000100) != 0:
-                name_len = struct.unpack_from(">I", response, offset)
+                (name_len, ) = struct.unpack_from(">I", response, offset)
                 offset += struct.calcsize(">I")
-                name_bytes = struct.unpack_from(f"{name_len}s", response, offset)
+                (name_bytes, ) = struct.unpack_from(f"{name_len}s", response, offset)
                 offset += struct.calcsize(f"{name_len}s")
                 monitor['name'] = name_bytes.decode('utf-8', 'ignore')
             monitor_data.append(monitor)
