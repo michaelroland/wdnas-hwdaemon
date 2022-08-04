@@ -389,6 +389,9 @@ class WdHwClient(object):
                 description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\ntemperature: get system temperature command",
                 epilog=wdhwdaemon.DAEMON_EPILOG,
                 formatter_class=argparse.RawDescriptionHelpFormatter)
+        cmd_fan_action.add_argument(
+                '-a', '--all', action='store_true',
+                help='get all temperature monitor measurements')
         
         cmd_lcd = subparsers.add_parser('lcd', help='LCD control command',
                 description=f"{wdhwdaemon.CLIENT_DESCRIPTION}\nlcd: LCD control command",
@@ -659,11 +662,14 @@ class WdHwClient(object):
             elif args.command == "temperature":
                 pmc_temperature = conn.getPMCTemperature()
                 print(f"PMC temperature: {pmc_temperature} °C")
-                for monitor in conn.getMonitorTemperature():
-                    if monitor['temperature'] is not None:
-                        print(f"{monitor['name']}: {monitor['temperature']:.2f} °C")
-                    else:
-                        print(f"{monitor['name']}: N/A")
+                if args.all:
+                    for monitor in conn.getMonitorTemperature():
+                        if monitor['name'] == "SystemTemperatureMonitor":
+                            continue
+                        if monitor['temperature'] is not None:
+                            print(f"{monitor['name']}: {monitor['temperature']:.0f} °C")
+                        else:
+                            print(f"{monitor['name']}: N/A")
             
             elif args.command == "shutdown":
                 daemon_pid = conn.daemonShutdown()
