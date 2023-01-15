@@ -147,7 +147,7 @@ class CommandPacket(BasicPacket):
         for name in dir(self):
             if name.startswith("CMD_") and getattr(self, name) == self.identifier:
                 return name
-        return None
+        return f"UNKNOWN(0x{self.identifier:04X})"
 
 
 class ResponsePacket(CommandPacket):
@@ -214,7 +214,7 @@ class ResponsePacket(CommandPacket):
         for name in dir(self):
             if name.startswith("ERR_") and getattr(self, name) == self.__error_code:
                 return name
-        return None
+        return f"UNKNOWN(0x{self.__error_code:02X})"
     
     @property
     def parameter(self):
