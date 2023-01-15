@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Server.
 
-Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2023 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -357,12 +357,9 @@ class ServerThreadImpl(PacketServerThread):
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_SET:      self.__commandDriveAlertLEDBlinkSet,
                 CommandPacket.CMD_DRIVE_ALERT_LED_BLINK_GET:      self.__commandDriveAlertLEDBlinkGet,
                 CommandPacket.CMD_MONITOR_TEMPERATURE_GET:        self.__commandMonitorTemperatureGet,
-        }
-        if self.__hw_daemon.debug_mode:
-            self.__COMMANDS.update({
                 # PMC manager debug commands
                 CommandPacket.CMD_PMC_DEBUG:                      self.__commandPMCDebug,
-            })
+        }
             
         super().__init__(listener, CommandPacket)
     
@@ -707,9 +704,12 @@ class ServerThreadImpl(PacketServerThread):
             self.sendPacket(packet.createResponse(monitor_data))
     
     def __commandPMCDebug(self, packet):
-        raw_command = packet.parameter.decode('ascii', 'ignore')
-        raw_response = self.__hw_daemon.pmc.sendRaw(raw_command)
-        self.sendPacket(packet.createResponse(raw_response.encode('utf-8', 'ignore')))
+        if not self.__hw_daemon.debug_mode:
+            self.sendPacket(packet.createErrorResponse(ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED))
+        else:
+            raw_command = packet.parameter.decode('ascii', 'ignore')
+            raw_response = self.__hw_daemon.pmc.sendRaw(raw_command)
+            self.sendPacket(packet.createResponse(raw_response.encode('utf-8', 'ignore')))
 
 
 class WdHwServer(SocketListener):
