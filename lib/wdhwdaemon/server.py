@@ -140,6 +140,14 @@ class CommandPacket(BasicPacket):
     def keep_alive(self):
         """bool: Should the connection be kept alive after this command-response sequence?"""
         return (self.flags & self.FLAG_KEEP_ALIVE) == self.FLAG_KEEP_ALIVE
+    
+    @property
+    def command_name(self):
+        """str: The command identifier string representation."""
+        for name in dir(self):
+            if name.startswith("CMD_") and getattr(self, name) == self.identifer:
+                return name
+        return None
 
 
 class ResponsePacket(CommandPacket):
@@ -199,6 +207,14 @@ class ResponsePacket(CommandPacket):
     def error_code(self):
         """int: The error code associated with this packet."""
         return self.__error_code
+    
+    @property
+    def error_name(self):
+        """str: The error code string representation."""
+        for name in dir(self):
+            if name.startswith("ERR_") and getattr(self, name) == self.__error_code:
+                return name
+        return None
     
     @property
     def parameter(self):

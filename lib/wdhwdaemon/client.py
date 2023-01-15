@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Client.
 
-Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2023 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -46,6 +46,24 @@ CLIENT_EXIT_SUCCESS = 0
 CLIENT_EXIT_HELP = 1
 
 
+class NoSuchCommandError(Exception):
+    """Exception class for indicating that a command is not supported by the server.
+    """
+    pass
+
+
+class CommandExecutionFailedError(Exception):
+    """Exception class for indicating that a command failed to execute on the server.
+    """
+    pass
+
+
+class ServerCommunicationError(Exception):
+    """Exception class for indicating unexpected communication errors with the server.
+    """
+    pass
+
+
 class WdHwConnector(BasicPacketClient):
     """WD Hardware Controller Client Connector.
     """
@@ -75,13 +93,37 @@ class WdHwConnector(BasicPacketClient):
             _logger.error("%s: Received unexpected response '%02X' for command '%02X'",
                           type(self).__name__,
                           response.identifier, command_code)
-            raise CloseConnectionWarning(f"Unexpected response '{response.identifier:02X}' received")
+            raise ServerCommunicationError(f"Unexpected response '{response.identifier:02X}' received")
         elif response.is_error:
             # error
-            _logger.error("%s: Received error '%02X'",
-                          type(self).__name__,
-                          response.error_code)
-            raise CloseConnectionWarning(f"Error '{response.error_code:02X}' received")
+            if response.error_code == ResponsePacket.ERR_NO_SUCH_COMMAND:
+                _logger.debug("%s: Command '%02X' (%s) not supported by server (received error '%02X' %s)",
+                              type(self).__name__,
+                              command_code, command.command_name,
+                              response.error_code, response.error_name)
+                raise NoSuchCommandError(f"Command {command.command_name} ('{command_code:02X}') not supported by server")
+            elif response.error_code == ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED:
+                _logger.debug("%s: Command '%02X' (%s) not implemented by server (received error '%02X' %s)",
+                              type(self).__name__,
+                              command_code, command.command_name,
+                              response.error_code, response.error_name)
+                raise NoSuchCommandError(f"Command {command.command_name} ('{command_code:02X}') not implemented by server")
+            elif response.error_code == ResponsePacket.ERR_EXECUTION_FAILED:
+                _logger.debug("%s: Server failed on executing command '%02X' (%s) (received error '%02X' %s)",
+                              type(self).__name__,
+                              command_code, command.command_name,
+                              response.error_code, response.error_name)
+                raise CommandExecutionFailedError(f"Execution failed for command {command.command_name} ('{command_code:02X}')")
+            elif response.error_code == ResponsePacket.ERR_PARAMETER_LENGTH_ERROR:
+                _logger.debug("%s: Command parameters have invalid length (received error '%02X' %s)",
+                              type(self).__name__,
+                              response.error_code, response.error_name)
+                raise ValueError(f"Command parameters have invalid length")
+            else:
+                _logger.error("%s: Received error '%02X' (%s)",
+                              type(self).__name__,
+                              response.error_code, response.error_name)
+                raise ServerCommunicationError(f"Error '{response.error_code:02X}' received")
         else:
             # success
             _logger.debug("%s: Received successful response (%s)",
@@ -689,6 +731,9 @@ class WdHwClient(object):
                     result = conn.sendDebug(args.pmc_command)
                     print(f"> {args.pmc_command}")
                     print(f"< {result}")
+        
+        except NoSuchCommandError as e:
+            print(str(e))
         
         finally:
             conn.close()
