@@ -83,39 +83,39 @@ class WdHwConnector(BasicPacketClient):
         if keep_alive:
             flags |= CommandPacket.FLAG_KEEP_ALIVE
         command = CommandPacket(command_code, parameter=parameter, flags=flags)
-        _logger.debug("%s: Sending command '%02X' (%s)",
+        _logger.debug("%s: Sending command '%04X' (%s)",
                       type(self).__name__,
                       command_code, repr(parameter))
         self.sendPacket(command)
         response = self.receivePacket()
         if response.identifier != command_code:
             # unexpected response
-            _logger.error("%s: Received unexpected response '%02X' for command '%02X'",
+            _logger.error("%s: Received unexpected response '%04X' for command '%04X'",
                           type(self).__name__,
                           response.identifier, command_code)
             raise ServerCommunicationError(f"Unexpected response '{response.identifier:02X}' received")
         elif response.is_error:
             # error
             if response.error_code == ResponsePacket.ERR_NO_SUCH_COMMAND:
-                _logger.debug("%s: Command '%02X' (%s) not supported by server (received error '%02X' %s)",
+                _logger.debug("%s: Command '%04X' (%s) not supported by server (received error '%02X': %s)",
                               type(self).__name__,
                               command_code, command.command_name,
                               response.error_code, response.error_name)
-                raise NoSuchCommandError(f"Command {command.command_name} ('{command_code:02X}') not supported by server")
+                raise NoSuchCommandError(f"Command {command.command_name} not supported by server")
             elif response.error_code == ResponsePacket.ERR_COMMAND_NOT_IMPLEMENTED:
-                _logger.debug("%s: Command '%02X' (%s) not implemented by server (received error '%02X' %s)",
+                _logger.debug("%s: Command '%04X' (%s) not implemented by server (received error '%02X': %s)",
                               type(self).__name__,
                               command_code, command.command_name,
                               response.error_code, response.error_name)
-                raise NoSuchCommandError(f"Command {command.command_name} ('{command_code:02X}') not implemented by server")
+                raise NoSuchCommandError(f"Command {command.command_name} not implemented by server")
             elif response.error_code == ResponsePacket.ERR_EXECUTION_FAILED:
-                _logger.debug("%s: Server failed on executing command '%02X' (%s) (received error '%02X' %s)",
+                _logger.debug("%s: Server failed on executing command '%04X' (%s) (received error '%02X': %s)",
                               type(self).__name__,
                               command_code, command.command_name,
                               response.error_code, response.error_name)
-                raise CommandExecutionFailedError(f"Execution failed for command {command.command_name} ('{command_code:02X}')")
+                raise CommandExecutionFailedError(f"Execution failed for command {command.command_name}")
             elif response.error_code == ResponsePacket.ERR_PARAMETER_LENGTH_ERROR:
-                _logger.debug("%s: Command parameters have invalid length (received error '%02X' %s)",
+                _logger.debug("%s: Command parameters have invalid length (received error '%02X': %s)",
                               type(self).__name__,
                               response.error_code, response.error_name)
                 raise ValueError(f"Command parameters have invalid length")
