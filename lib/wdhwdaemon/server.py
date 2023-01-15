@@ -145,7 +145,7 @@ class CommandPacket(BasicPacket):
     def command_name(self):
         """str: The command identifier string representation."""
         for name in dir(self):
-            if name.startswith("CMD_") and getattr(self, name) == self.identifer:
+            if name.startswith("CMD_") and getattr(self, name) == self.identifier:
                 return name
         return None
 
