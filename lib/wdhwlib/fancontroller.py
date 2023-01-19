@@ -593,7 +593,7 @@ class FanController(FanControllerCallback):
         ]
         if not isinstance(additional_drives, list):
             additional_drives = []
-        discovered_drives = 
+        discovered_drives = []
         for disk in temperature_reader.findHardDiskDrives():
             discovered_drives.append(disk)
             _logger.debug("%s: Discovered internal HDD with temperature sensing at %s",
