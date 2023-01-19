@@ -364,6 +364,22 @@ class TemperatureReader(object):
         except subprocess.CalledProcessError:
             pass
     
+    def getHardDiskDrive(self, hdd):
+        """Probe hard disk drive for temperature information.
+        
+        Returns:
+            str: The hard disk drive device file.
+        """
+        hdd = os.path.join("/dev", hdd)
+        hdd = os.path.realpath(hdd)
+        _logger.debug("%s: Probing HDD %s",
+                      type(self).__name__,
+                      hdd)
+        self.getHDTemperature(hdd)
+        if self.__HDSMART_METHOD[hdd] is not None:
+            return hdd
+        return None
+    
     def __getHDTemperature1(self, hdd):
         """Get the temperature of the hard disk drive through hddtemp.
         

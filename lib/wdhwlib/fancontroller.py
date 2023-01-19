@@ -571,12 +571,13 @@ class FanController(FanControllerCallback):
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
     
-    def __init__(self, pmc, temperature_reader):
+    def __init__(self, pmc, temperature_reader, additional_drives=None):
         """Initializes a new fan controller.
         
         Args:
             pmc (PMCCommands): An instance of the PMC interface.
             temperature_reader (TemperatureReader): An instance of the temperature reader.
+            additional_drives (list(str)): A list of additional HDDs to monitor.
         """
         super().__init__()
         self.__status_handler = FanControllerCallbackHandler(self)
@@ -590,11 +591,30 @@ class FanController(FanControllerCallback):
             CPUTemperatureMonitor(temperature_reader),
             CPUDeltaTemperatureMonitor(temperature_reader),
         ]
+        if not isinstance(additional_drives, list):
+            additional_drives = []
+        discovered_drives = 
         for disk in temperature_reader.findHardDiskDrives():
+            discovered_drives.append(disk)
             _logger.debug("%s: Discovered internal HDD with temperature sensing at %s",
                           type(self).__name__,
                           disk)
             self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
+        for drive in additional_drives:
+            disk = temperature_reader.getHardDiskDrive(drive)
+            if disk is None:
+                _logger.error("%s: User-configured HDD '%s' not supported",
+                              type(self).__name__,
+                              drive)
+            elif disk not in discovered_drives:
+                _logger.debug("%s: User-configured HDD '%s' with temperature sensing at %s",
+                              type(self).__name__,
+                              drive, disk)
+                self.__monitors.append(HardDiskDriveTemperatureMonitor(temperature_reader, disk))
+            else:
+                _logger.debug("%s: User-configured HDD '%s' already added as %s",
+                              type(self).__name__,
+                              drive, disk)
         for dimm in temperature_reader.findMemoryTemperatureSensors():
             (i2c_index, dimm_index) = dimm
             _logger.debug("%s: Discovered memory temperature sensor for DIMM %d at I2C %d",

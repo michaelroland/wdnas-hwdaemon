@@ -291,6 +291,8 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         lcd_intensity_normal (int): The normal LCD backlight intensity.
         lcd_intensity_dimmed (int): The dimmed LCD backlight intensity.
         lcd_dim_timeout (int): The timeout in seconds after which to dim the LCD backlight.
+        additional_drives (List(str)): A list of additional drives to include in
+            temperature sensing.
     """
     
     def __init__(self, config_file):
@@ -324,6 +326,7 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "fan_speed_normal", default=None, parser=self.parseInteger)
         self.declareOption(SECTION, "fan_speed_increment", default=None, parser=self.parseInteger)
         self.declareOption(SECTION, "fan_speed_decrement", default=None, parser=self.parseInteger)
+        self.declareOption(SECTION, "additional_drives", default=[], parser=self.parseArray)
 
 
 class WdHwDaemon(daemonize.daemon.AbstractDaemon):
@@ -959,7 +962,8 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                       pmc_version, num_cpus)
         fan_controller = FanControllerImpl(self,
                                            pmc,
-                                           temperature_reader)
+                                           temperature_reader,
+                                           self.getConfig("additional_drives"))
         self.__fan_controller = fan_controller
         fan_controller.start()
         
