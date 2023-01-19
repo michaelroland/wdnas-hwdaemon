@@ -69,9 +69,13 @@ _HDSMART_DISCOVERY_COMMAND = ["lsblk", "-S", "-d", "-l", "-n", "-o", "NAME,TRAN"
 _HDSMART_DISCOVERY_REGEX = re.compile(r"^(\S+)\s+(\S*)$")
 _HDSMART_DISCOVERY_TYPE = "sata"
 _HDSMART_COMMAND1_BASE = ["sudo", "-n", "hddtemp", "-n", "-u", "C"]
-_HDSMART_REGEX_TEMPERATURE1 = re.compile(r"^([0-9]+)[^0-9]*$")
-_HDSMART_COMMAND2_BASE = ["sudo", "-n", "smartctl", "-A"]
-_HDSMART_REGEX_TEMPERATURE2 = re.compile(r"^\s*194\s+.*\s+([0-9]+)\s*$")
+_HDSMART_COMMAND1_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
+_HDSMART_COMMAND2_BASE = ["sudo", "-n", "smartctl", "-n", "idle,128", "-A"]
+_HDSMART_COMMAND2_REGEX_TEMPERATURE = [
+    re.compile(r"^\s*194\s+.*\s+([0-9]+)\s*$"),
+    re.compile(r"^\s*190\s+.*\s+([0-9]+)\s*$"),
+]
+_HDSMART_COMMAND2_TEMPORARY_ERROR = [128]
 
 
 class TemperatureReader(object):
@@ -84,7 +88,7 @@ class TemperatureReader(object):
         self.__lock = threading.RLock()
         self.__running = False
         self.__CORETEMP = None
-        self.__HDSMART_METHOD = None
+        self.__HDSMART_METHOD = {}
     
     def connect(self):
         """Connect the temperature reader.
@@ -354,7 +358,8 @@ class TemperatureReader(object):
                         _logger.debug("%s: Probing HDD %s",
                                       type(self).__name__,
                                       hdd)
-                        if self.getHDTemperature(hdd) is not None:
+                        self.getHDTemperature(hdd)
+                        if self.__HDSMART_METHOD[hdd] is not None:
                             yield hdd
         except subprocess.CalledProcessError:
             pass
@@ -366,19 +371,20 @@ class TemperatureReader(object):
             hdd (str): The device file of the hard disk.
         
         Returns:
-            float: The temperature of the hard disk drive.
+            (float, bool): The temperature of the hard disk drive and True if the outcome is final.
         """
         try:
             result = subprocess.check_output(_HDSMART_COMMAND1_BASE + [hdd],
                                              encoding='utf-8', errors='replace',
                                              stderr=subprocess.DEVNULL)
-            match = _HDSMART_REGEX_TEMPERATURE1.match(result)
+            match = _HDSMART_COMMAND1_REGEX_TEMPERATURE.match(result)
             if match is not None:
                 temperature = int(match.group(1))
-                return float(temperature)
+                self.__HDSMART_METHOD[hdd] = 1
+                return (float(temperature), True)
         except subprocess.CalledProcessError:
             pass
-        return None
+        return (None, True)
     
     def __getHDTemperature2(self, hdd):
         """Get the temperature of the hard disk drive through smartctl.
@@ -387,20 +393,23 @@ class TemperatureReader(object):
             hdd (str): The device file of the hard disk.
         
         Returns:
-            float: The temperature of the hard disk drive.
+            (float, bool): The temperature of the hard disk drive and True if the outcome is final.
         """
         try:
             result = subprocess.check_output(_HDSMART_COMMAND2_BASE + [hdd],
                                              encoding='utf-8', errors='replace',
                                              stderr=subprocess.DEVNULL)
-            for line in result.splitlines():
-                match = _HDSMART_REGEX_TEMPERATURE2.match(result)
-                if match is not None:
-                    temperature = int(match.group(1))
-                    return float(temperature)
-        except subprocess.CalledProcessError:
-            pass
-        return None
+            for regex_temp in _HDSMART_COMMAND2_REGEX_TEMPERATURE:
+                for line in result.splitlines():
+                    match = regex_temp.match(result)
+                    if match is not None:
+                        temperature = int(match.group(1))
+                        self.__HDSMART_METHOD[hdd] = 2
+                        return (float(temperature), True)
+        except subprocess.CalledProcessError as e:
+            if e.returncode in _HDSMART_COMMAND2_TEMPORARY_ERROR:
+                return (None, False)
+        return (None, True)
     
     def getHDTemperature(self, hdd):
         """Get the temperature of the hard disk drive.
@@ -411,19 +420,20 @@ class TemperatureReader(object):
         Returns:
             float: The temperature of the hard disk drive.
         """
-        if self.__HDSMART_METHOD == 1:
-            return self.__getHDTemperature1(hdd)
-        elif self.__HDSMART_METHOD == 2:
-            return self.__getHDTemperature2(hdd)
-        else:
-            self.__HDSMART_METHOD = 1
-            temperature = self.__getHDTemperature1(hdd)
+        smart_method = self.__HDSMART_METHOD.get(hdd, 1)
+        temperature = None
+        if smart_method == 1:
+            (temperature, final) = self.__getHDTemperature1(hdd)
             if temperature is None:
-                self.__HDSMART_METHOD = 2
-                temperature = self.__getHDTemperature2(hdd)
+                smart_method = 2
+        if smart_method == 2:
+            (temperature, final) = self.__getHDTemperature2(hdd)
             if temperature is None:
-                self.__HDSMART_METHOD = None
-            return temperature
+                smart_method = None
+            if not final:
+                smart_method = 1
+        self.__HDSMART_METHOD[hdd] = smart_method
+        return temperature
 
 
 if __name__ == "__main__":
