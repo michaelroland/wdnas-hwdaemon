@@ -102,7 +102,7 @@ class FanControllerImpl(FanController):
         self.__fan_speed_normal = self.__hw_daemon.getConfig("fan_speed_normal")
         self.__fan_speed_increment = self.__hw_daemon.getConfig("fan_speed_increment")
         self.__fan_speed_decrement = self.__hw_daemon.getConfig("fan_speed_decrement")
-        super().__init__(pmc, temperature_reader)
+        super().__init__(pmc, temperature_reader, self.__hw_daemon.getConfig("additional_drives"))
     
     @property
     def fan_speed_normal(self):
@@ -962,8 +962,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
                       pmc_version, num_cpus)
         fan_controller = FanControllerImpl(self,
                                            pmc,
-                                           temperature_reader,
-                                           self.getConfig("additional_drives"))
+                                           temperature_reader)
         self.__fan_controller = fan_controller
         fan_controller.start()
         
