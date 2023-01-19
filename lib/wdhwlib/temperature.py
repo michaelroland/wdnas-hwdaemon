@@ -358,8 +358,7 @@ class TemperatureReader(object):
                         _logger.debug("%s: Probing HDD %s",
                                       type(self).__name__,
                                       hdd)
-                        self.getHDTemperature(hdd)
-                        if self.__HDSMART_METHOD[hdd] is not None:
+                        if self.getHDTemperature(hdd) or self.__HDSMART_METHOD[hdd] is not None:
                             yield hdd
         except subprocess.CalledProcessError:
             pass
@@ -376,7 +375,7 @@ class TemperatureReader(object):
                       type(self).__name__,
                       hdd)
         self.getHDTemperature(hdd)
-        if self.__HDSMART_METHOD[hdd] is not None:
+        if self.getHDTemperature(hdd) or self.__HDSMART_METHOD[hdd] is not None:
             return hdd
         return None
     
@@ -396,7 +395,6 @@ class TemperatureReader(object):
             match = _HDSMART_COMMAND1_REGEX_TEMPERATURE.match(result)
             if match is not None:
                 temperature = int(match.group(1))
-                self.__HDSMART_METHOD[hdd] = 1
                 return (float(temperature), True)
         except subprocess.CalledProcessError:
             pass
@@ -420,7 +418,6 @@ class TemperatureReader(object):
                     match = regex_temp.match(result)
                     if match is not None:
                         temperature = int(match.group(1))
-                        self.__HDSMART_METHOD[hdd] = 2
                         return (float(temperature), True)
         except subprocess.CalledProcessError as e:
             if e.returncode in _HDSMART_COMMAND2_TEMPORARY_ERROR:
