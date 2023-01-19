@@ -72,8 +72,8 @@ _HDSMART_COMMAND1_BASE = ["sudo", "-n", "hddtemp", "-n", "-u", "C"]
 _HDSMART_COMMAND1_REGEX_TEMPERATURE = re.compile(r"^([0-9]+)[^0-9]*$")
 _HDSMART_COMMAND2_BASE = ["sudo", "-n", "smartctl", "-n", "idle,128", "-A"]
 _HDSMART_COMMAND2_REGEX_TEMPERATURE = [
-    re.compile(r"^\s*194\s+.*\s+([0-9]+)\s*$"),
-    re.compile(r"^\s*190\s+.*\s+([0-9]+)\s*$"),
+    re.compile(r"^\s*194\s+.*\s+([0-9]+)(\s+\(.*\))?\s*$"),
+    re.compile(r"^\s*190\s+.*\s+([0-9]+)(\s+\(.*\))?\s*$"),
 ]
 _HDSMART_COMMAND2_TEMPORARY_ERROR = [128]
 
