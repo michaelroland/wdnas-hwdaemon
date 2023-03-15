@@ -4,7 +4,7 @@
 ## 
 ## Drive presence changed notification
 ## 
-## Copyright (c) 2017 Michael Roland <mi.roland@gmail.com>
+## Copyright (c) 2017-2023 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ mail_recipient_addr="root"
 sendmail="/usr/sbin/sendmail"
 
 drive_bay=$1
-drive_name=$2
-drive_state=$3
+drive_state=$2
+drive_name=$3
 event_timestamp=$(date +'%Y-%m-%d %H:%M:%S %z')
 
 if [ "${drive_state}" -eq "1" ] ; then

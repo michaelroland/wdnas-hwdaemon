@@ -28,7 +28,7 @@ DAEMON_VERSION = f"%(prog)s v{__version__}"
 DAEMON_DESCRIPTION = "Western Digital Hardware Controller Daemon"
 CLIENT_DESCRIPTION = "Western Digital Hardware Controller Client"
 DAEMON_EPILOG = """
-Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2023 Michael Roland <mi.roland@gmail.com>
 Copyright (c) 2019 Stefaan Ghysels <stefaang@gmail.com>
 License GPLv3+: GNU GPL version 3 or later <http://www.gnu.org/licenses/>
 

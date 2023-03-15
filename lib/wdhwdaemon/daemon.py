@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Western Digital Hardware Controller Daemon.
 
-Copyright (c) 2017-2022 Michael Roland <mi.roland@gmail.com>
+Copyright (c) 2017-2023 Michael Roland <mi.roland@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -264,8 +264,8 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         drive_presence_changed_command (str): The command to execute when the drive bay
             presence status changed.
         drive_presence_changed_args (List(str)): A list of arguments passed to the
-            command ``drive_presence_changed_command`` (the placeholders "{drive_bay}"
-            and "{state}" may be used).
+            command ``drive_presence_changed_command`` (the placeholders "{drive_bay}",
+            "{drive_name}", and "{state}" may be used).
         power_supply_changed_command (str): The command to execute when the power supply
             power-up status changed.
         power_supply_changed_args (List(str)): A list of arguments passed to the
@@ -309,7 +309,7 @@ class ConfigFileImpl(daemonize.config.AbstractConfigFile):
         self.declareOption(SECTION, "system_down_command", default=None)
         #self.declareOption(SECTION, "system_down_args", default=[], parser=self.parseArray)
         self.declareOption(SECTION, "drive_presence_changed_command", default=None)
-        self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{state}"], parser=self.parseArray)
+        self.declareOption(SECTION, "drive_presence_changed_args", default=["{drive_bay}", "{state}", "{drive_name}"], parser=self.parseArray)
         self.declareOption(SECTION, "power_supply_changed_command", default=None)
         self.declareOption(SECTION, "power_supply_changed_args", default=["{socket}", "{state}"], parser=self.parseArray)
         self.declareOption(SECTION, "temperature_changed_command", default=None)
