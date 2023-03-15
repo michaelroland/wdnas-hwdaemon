@@ -786,7 +786,7 @@ class WdHwDaemon(daemonize.daemon.AbstractDaemon):
             presence_delta = presence_mask ^ self.__pmc_drive_presence_mask
             for drive_bay in range(0, self.__pmc_num_drivebays):
                 if (presence_delta & (1<<drive_bay)) != 0:
-                    drive_present = (presence_mask & (1<<drive_bay)) != 0
+                    drive_present = (presence_mask & (1<<drive_bay)) == 0
                     self.notifyDrivePresenceChanged(drive_bay, drive_present)
             self.__pmc_drive_presence_mask = presence_mask
         
