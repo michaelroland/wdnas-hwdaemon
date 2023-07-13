@@ -587,7 +587,7 @@ class FanController(FanControllerCallback):
     
     FAN_DEFAULT = 30
     FAN_MIN = 20
-    FAN_MAX = 100
+    FAN_MAX = 99
     FAN_STEP_INC = 10
     FAN_STEP_DEC = 10
     FAN_RPM_MIN = 50
