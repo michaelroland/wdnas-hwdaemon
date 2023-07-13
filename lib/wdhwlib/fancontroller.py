@@ -43,18 +43,28 @@ class Condition(object):
     COMPARISON_ALWAYS = 5
     COMPARISON_NEVER = 6
     
-    def __init__(self, output_level, comparison, limit):
-        """Initializes a new thermal condition.
+    def __init__(self, output_level, comparison, limit, hold_threshold=None):
+        """Initializes a new thermal condition with optional hysteresis.
         
         Args:
             output_level (int): The output level associated with this condition.
             comparison (int): The type of comparison to apply between the test value
                 and the limit.
             limit (float): The limit of the condition.
+            hold_threshold (float): The threshold from the limit to hold the condition.
         """
+        self.__state = False
         self.__output_level = output_level
         self.__comparison = comparison
-        self.__limit = limit
+        self.__limit_on = limit
+        self.__limit_off = limit
+        if hold_threshold:
+            if (self.__comparison == Condition.COMPARISON_LESSTHAN) or
+               (self.__comparison == Condition.COMPARISON_LESSEQUALTHAN):
+                self.__limit_off = limit + hold_threshold
+            elif (self.__comparison == Condition.COMPARISON_GREATERTHAN) or
+                 (self.__comparison == Condition.COMPARISON_GREATEREQUALTHAN):
+                self.__limit_off = limit - hold_threshold
     
     def test(self, value):
         """Tests the condition against a value.
@@ -66,21 +76,34 @@ class Condition(object):
             bool: True if the condition matches, else False.
         """
         if self.__comparison == Condition.COMPARISON_ALWAYS:
-            return True
+            self.__state = True
         elif value is None:
-            return False
+            self.__state = False
         elif self.__comparison == Condition.COMPARISON_LESSTHAN:
-            return value < self.__limit
+            if self.__state:
+                self.__state = value < self.__limit_off
+            else:
+                self.__state = value < self.__limit_on
         elif self.__comparison == Condition.COMPARISON_GREATERTHAN:
-            return value > self.__limit
+            if self.__state:
+                self.__state = value > self.__limit_off
+            else:
+                self.__state = value > self.__limit_on
         elif self.__comparison == Condition.COMPARISON_LESSEQUALTHAN:
-            return value <= self.__limit
+            if self.__state:
+                self.__state = value <= self.__limit_off
+            else:
+                self.__state = value <= self.__limit_on
         elif self.__comparison == Condition.COMPARISON_GREATEREQUALTHAN:
-            return value >= self.__limit
+            if self.__state:
+                self.__state = value >= self.__limit_off
+            else:
+                self.__state = value >= self.__limit_on
         elif self.__comparison == Condition.COMPARISON_ALWAYS_NOT_NONE:
-            return True
+            self.__state = True
         else:
-            return False
+            self.__state = False
+        return self.__state
     
     @property
     def level(self):
@@ -266,11 +289,11 @@ class SystemTemperatureMonitor(ThermalConditionMonitor):
             30,
             5.0,
             [
-                Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN, 104.0),
-                Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  94.0),
-                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  89.0),
-                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  84.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  74.0),
+                Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN, 100.0),
+                Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  90.0),
+                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  80.0, 20.0),
+                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  40.0,  5.0),
+                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  30.0,  5.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
                 Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_ALWAYS, None),
@@ -308,8 +331,8 @@ class MemoryTemperatureMonitor(ThermalConditionMonitor):
             [
                 Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,  94.0),
                 Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,  89.0),
-                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0),
-                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0),
+                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,  84.0, 10.0),
+                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,  69.0,  5.0),
                 Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,  60.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,   1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN, 1.0),
@@ -381,9 +404,9 @@ class CPUDeltaTemperatureMonitor(ThermalConditionMonitor):
             [
                 Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_LESSEQUALTHAN,  1.0),
                 Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_LESSEQUALTHAN, 11.0),
-                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_LESSEQUALTHAN, 16.0),
-                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_LESSEQUALTHAN, 21.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_LESSEQUALTHAN, 30.0),
+                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_LESSEQUALTHAN, 16.0,  5.0),
+                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_LESSEQUALTHAN, 21.0, 10.0),
+                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_LESSEQUALTHAN, 30.0, 10.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_LESSEQUALTHAN, 97.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_GREATERTHAN,   97.0),
                 Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_ALWAYS, None),
@@ -426,9 +449,9 @@ class HardDiskDriveTemperatureMonitor(ThermalConditionMonitor):
                 Condition(FanController.LEVEL_CRITICAL, Condition.COMPARISON_GREATERTHAN,   74.0),
                 Condition(FanController.LEVEL_SHUTDOWN, Condition.COMPARISON_GREATERTHAN,   71.0),
                 Condition(FanController.LEVEL_DANGER,   Condition.COMPARISON_GREATERTHAN,   67.0),
-                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,   64.0),
-                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,   40.0),
-                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,   37.0),
+                Condition(FanController.LEVEL_HOT,      Condition.COMPARISON_GREATERTHAN,   64.0, 15.0),
+                Condition(FanController.LEVEL_WARM,     Condition.COMPARISON_GREATERTHAN,   40.0,  5.0),
+                Condition(FanController.LEVEL_NORMAL,   Condition.COMPARISON_GREATERTHAN,   35.0,  5.0),
                 Condition(FanController.LEVEL_COOL,     Condition.COMPARISON_GREATERTHAN,    1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_LESSEQUALTHAN,  1.0),
                 Condition(FanController.LEVEL_UNDER,    Condition.COMPARISON_ALWAYS, None),
