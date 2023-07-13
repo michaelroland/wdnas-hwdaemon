@@ -59,11 +59,9 @@ class Condition(object):
         self.__limit_on = limit
         self.__limit_off = limit
         if hold_threshold:
-            if (self.__comparison == Condition.COMPARISON_LESSTHAN) or
-               (self.__comparison == Condition.COMPARISON_LESSEQUALTHAN):
+            if self.__comparison in [Condition.COMPARISON_LESSTHAN, Condition.COMPARISON_LESSEQUALTHAN]:
                 self.__limit_off = limit + hold_threshold
-            elif (self.__comparison == Condition.COMPARISON_GREATERTHAN) or
-                 (self.__comparison == Condition.COMPARISON_GREATEREQUALTHAN):
+            elif self.__comparison in [Condition.COMPARISON_GREATERTHAN, Condition.COMPARISON_GREATEREQUALTHAN]:
                 self.__limit_off = limit - hold_threshold
     
     def test(self, value):
